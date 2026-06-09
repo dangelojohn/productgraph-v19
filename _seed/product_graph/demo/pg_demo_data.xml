@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- ── Demo Items ──────────────────────────────────────── -->
+
+        <record id="demo_item_main_assy" model="pg.item">
+            <field name="item_number">PG-00001</field>
+            <field name="name">Main Assembly — Widget Pro</field>
+            <field name="item_type">manufactured</field>
+            <field name="category_id" ref="pg_cat_mech_assy"/>
+            <field name="state">engineering</field>
+            <field name="description">Top-level assembly for the Widget Pro product line.</field>
+        </record>
+
+        <record id="demo_item_pcba" model="pg.item">
+            <field name="item_number">PG-00002</field>
+            <field name="name">Main Controller PCBA</field>
+            <field name="item_type">manufactured</field>
+            <field name="category_id" ref="pg_cat_elec_pcba"/>
+            <field name="state">engineering</field>
+            <field name="description">STM32-based main controller board.</field>
+        </record>
+
+        <record id="demo_item_enclosure" model="pg.item">
+            <field name="item_number">PG-00003</field>
+            <field name="name">Enclosure — Aluminium</field>
+            <field name="item_type">manufactured</field>
+            <field name="category_id" ref="pg_cat_mech_machined"/>
+            <field name="state">engineering</field>
+        </record>
+
+        <record id="demo_item_psu" model="pg.item">
+            <field name="item_number">PG-00004</field>
+            <field name="name">Power Supply Unit 24V/5A</field>
+            <field name="item_type">purchased</field>
+            <field name="category_id" ref="pg_cat_purchased"/>
+            <field name="state">engineering</field>
+        </record>
+
+        <record id="demo_item_fw" model="pg.item">
+            <field name="item_number">PG-00005</field>
+            <field name="name">Widget Pro Firmware</field>
+            <field name="item_type">document</field>
+            <field name="category_id" ref="pg_cat_software"/>
+            <field name="state">engineering</field>
+        </record>
+
+        <!-- ── Demo Revisions ──────────────────────────────────── -->
+
+        <record id="demo_rev_pcba_a" model="pg.revision">
+            <field name="item_id" ref="demo_item_pcba"/>
+            <field name="revision_code">A</field>
+            <field name="sequence">10</field>
+            <field name="state">draft</field>
+            <field name="description">Initial design. STM32F4 + CAN bus interface.</field>
+        </record>
+
+        <record id="demo_rev_enclosure_a" model="pg.revision">
+            <field name="item_id" ref="demo_item_enclosure"/>
+            <field name="revision_code">A</field>
+            <field name="sequence">10</field>
+            <field name="state">in_review</field>
+            <field name="description">Aluminium extrusion. M3 PEM inserts.</field>
+        </record>
+
+        <record id="demo_rev_assy_a" model="pg.revision">
+            <field name="item_id" ref="demo_item_main_assy"/>
+            <field name="revision_code">A</field>
+            <field name="sequence">10</field>
+            <field name="state">draft</field>
+            <field name="description">Initial assembly revision.</field>
+        </record>
+
+        <!-- BOM lines on assembly Rev A -->
+        <record id="demo_bom_line_1" model="pg.bom.line">
+            <field name="revision_id" ref="demo_rev_assy_a"/>
+            <field name="component_item_id" ref="demo_item_pcba"/>
+            <field name="product_qty">1</field>
+            <field name="sequence">10</field>
+            <field name="reference">U1</field>
+        </record>
+        <record id="demo_bom_line_2" model="pg.bom.line">
+            <field name="revision_id" ref="demo_rev_assy_a"/>
+            <field name="component_item_id" ref="demo_item_enclosure"/>
+            <field name="product_qty">1</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="demo_bom_line_3" model="pg.bom.line">
+            <field name="revision_id" ref="demo_rev_assy_a"/>
+            <field name="component_item_id" ref="demo_item_psu"/>
+            <field name="product_qty">1</field>
+            <field name="sequence">30</field>
+        </record>
+
+        <!-- ── Demo ECR ────────────────────────────────────────── -->
+
+        <record id="demo_ecr_001" model="pg.change.request">
+            <field name="name">ECR-2025-0001</field>
+            <field name="title">Upgrade MCU from STM32F4 to STM32H7</field>
+            <field name="item_id" ref="demo_item_pcba"/>
+            <field name="change_type">design</field>
+            <field name="priority">2</field>
+            <field name="state">submitted</field>
+            <field name="description">
+                &lt;p&gt;The STM32F4 is reaching end of life. Propose upgrading to
+                STM32H7 for improved performance and continued supply availability.&lt;/p&gt;
+            </field>
+        </record>
+
+    </data>
+</odoo>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Root categories -->
+        <record id="pg_cat_mechanical" model="pg.category">
+            <field name="name">Mechanical</field>
+            <field name="code">MECH</field>
+        </record>
+        <record id="pg_cat_electrical" model="pg.category">
+            <field name="name">Electrical</field>
+            <field name="code">ELEC</field>
+        </record>
+        <record id="pg_cat_software" model="pg.category">
+            <field name="name">Software / Firmware</field>
+            <field name="code">SW</field>
+        </record>
+        <record id="pg_cat_purchased" model="pg.category">
+            <field name="name">Purchased Parts</field>
+            <field name="code">PURCH</field>
+        </record>
+        <record id="pg_cat_documents" model="pg.category">
+            <field name="name">Documents</field>
+            <field name="code">DOC</field>
+        </record>
+        <record id="pg_cat_services" model="pg.category">
+            <field name="name">Services</field>
+            <field name="code">SVC</field>
+        </record>
+
+        <!-- Mechanical sub-categories -->
+        <record id="pg_cat_mech_sheet" model="pg.category">
+            <field name="name">Sheet Metal</field>
+            <field name="code">MECH-SM</field>
+            <field name="parent_id" ref="pg_cat_mechanical"/>
+        </record>
+        <record id="pg_cat_mech_machined" model="pg.category">
+            <field name="name">Machined Parts</field>
+            <field name="code">MECH-MC</field>
+            <field name="parent_id" ref="pg_cat_mechanical"/>
+        </record>
+        <record id="pg_cat_mech_fasteners" model="pg.category">
+            <field name="name">Fasteners</field>
+            <field name="code">MECH-FT</field>
+            <field name="parent_id" ref="pg_cat_mechanical"/>
+        </record>
+        <record id="pg_cat_mech_assy" model="pg.category">
+            <field name="name">Assemblies</field>
+            <field name="code">MECH-AS</field>
+            <field name="parent_id" ref="pg_cat_mechanical"/>
+        </record>
+
+        <!-- Electrical sub-categories -->
+        <record id="pg_cat_elec_pcba" model="pg.category">
+            <field name="name">PCBAs</field>
+            <field name="code">ELEC-PCB</field>
+            <field name="parent_id" ref="pg_cat_electrical"/>
+        </record>
+        <record id="pg_cat_elec_cables" model="pg.category">
+            <field name="name">Cables &amp; Harnesses</field>
+            <field name="code">ELEC-CBL</field>
+            <field name="parent_id" ref="pg_cat_electrical"/>
+        </record>
+        <record id="pg_cat_elec_components" model="pg.category">
+            <field name="name">Electronic Components</field>
+            <field name="code">ELEC-COMP</field>
+            <field name="parent_id" ref="pg_cat_electrical"/>
+        </record>
+
+    </data>
+</odoo>

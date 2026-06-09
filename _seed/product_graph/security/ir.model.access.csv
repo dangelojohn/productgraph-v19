@@ -1,0 +1,37 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+# ─── pg.category ──────────────────────────────────────────────────────────────
+access_pg_category_user,pg.category user,model_pg_category,product_graph.group_pg_user,1,0,0,0
+access_pg_category_admin,pg.category admin,model_pg_category,product_graph.group_pg_admin,1,1,1,1
+access_pg_category_engineer,pg.category engineer,model_pg_category,product_graph.group_pg_engineer,1,1,1,0
+# ─── pg.item.tag ──────────────────────────────────────────────────────────────
+access_pg_item_tag_user,pg.item.tag user,model_pg_item_tag,product_graph.group_pg_user,1,0,0,0
+access_pg_item_tag_engineer,pg.item.tag engineer,model_pg_item_tag,product_graph.group_pg_engineer,1,1,1,0
+access_pg_item_tag_admin,pg.item.tag admin,model_pg_item_tag,product_graph.group_pg_admin,1,1,1,1
+# ─── pg.item ──────────────────────────────────────────────────────────────────
+access_pg_item_user,pg.item user,model_pg_item,product_graph.group_pg_user,1,0,0,0
+access_pg_item_engineer,pg.item engineer,model_pg_item,product_graph.group_pg_engineer,1,1,1,0
+access_pg_item_admin,pg.item admin,model_pg_item,product_graph.group_pg_admin,1,1,1,1
+# ─── pg.revision ──────────────────────────────────────────────────────────────
+access_pg_revision_user,pg.revision user,model_pg_revision,product_graph.group_pg_user,1,0,0,0
+access_pg_revision_engineer,pg.revision engineer,model_pg_revision,product_graph.group_pg_engineer,1,1,1,0
+access_pg_revision_admin,pg.revision admin,model_pg_revision,product_graph.group_pg_admin,1,1,1,1
+# ─── pg.bom.line ──────────────────────────────────────────────────────────────
+access_pg_bom_line_user,pg.bom.line user,model_pg_bom_line,product_graph.group_pg_user,1,0,0,0
+access_pg_bom_line_engineer,pg.bom.line engineer,model_pg_bom_line,product_graph.group_pg_engineer,1,1,1,0
+access_pg_bom_line_admin,pg.bom.line admin,model_pg_bom_line,product_graph.group_pg_admin,1,1,1,1
+# ─── pg.release ───────────────────────────────────────────────────────────────
+access_pg_release_user,pg.release user,model_pg_release,product_graph.group_pg_user,1,0,0,0
+access_pg_release_manager,pg.release manager,model_pg_release,product_graph.group_pg_release_manager,1,1,1,0
+access_pg_release_admin,pg.release admin,model_pg_release,product_graph.group_pg_admin,1,1,1,1
+# ─── pg.change.request ────────────────────────────────────────────────────────
+access_pg_cr_user,pg.change.request user,model_pg_change_request,product_graph.group_pg_user,1,0,0,0
+access_pg_cr_engineer,pg.change.request engineer,model_pg_change_request,product_graph.group_pg_engineer,1,1,1,0
+access_pg_cr_admin,pg.change.request admin,model_pg_change_request,product_graph.group_pg_admin,1,1,1,1
+# ─── pg.asset ─────────────────────────────────────────────────────────────────
+access_pg_asset_user,pg.asset user,model_pg_asset,product_graph.group_pg_user,1,0,0,0
+access_pg_asset_engineer,pg.asset engineer,model_pg_asset,product_graph.group_pg_engineer,1,1,1,0
+access_pg_asset_admin,pg.asset admin,model_pg_asset,product_graph.group_pg_admin,1,1,1,1
+# ─── pg.audit.log ─────────────────────────────────────────────────────────────
+access_pg_audit_log_user,pg.audit.log user,model_pg_audit_log,product_graph.group_pg_user,1,0,0,0
+access_pg_audit_log_manager,pg.audit.log manager,model_pg_audit_log,product_graph.group_pg_release_manager,1,0,0,0
+access_pg_audit_log_admin,pg.audit.log admin,model_pg_audit_log,product_graph.group_pg_admin,1,0,1,0

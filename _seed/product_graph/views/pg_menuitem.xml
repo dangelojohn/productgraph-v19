@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Root menu -->
+    <menuitem id="menu_pg_root"
+              name="ProductGraph"
+              sequence="50"
+              web_icon="product_graph,static/src/img/icon.svg"/>
+
+    <!-- ── Engineering ───────────────────────────────────────────── -->
+    <menuitem id="menu_pg_engineering"
+              name="Engineering"
+              parent="menu_pg_root"
+              sequence="10"/>
+
+    <menuitem id="menu_pg_item"
+              name="Items"
+              parent="menu_pg_engineering"
+              action="action_pg_item"
+              sequence="10"/>
+
+    <menuitem id="menu_pg_revision"
+              name="Revisions"
+              parent="menu_pg_engineering"
+              action="action_pg_revision"
+              sequence="20"/>
+
+    <menuitem id="menu_pg_revision_pending"
+              name="Ready to Release"
+              parent="menu_pg_engineering"
+              action="action_pg_revision_pending_release"
+              sequence="30"/>
+
+    <!-- ── Change Management ─────────────────────────────────────── -->
+    <menuitem id="menu_pg_change"
+              name="Change Management"
+              parent="menu_pg_root"
+              sequence="20"/>
+
+    <menuitem id="menu_pg_ecr"
+              name="Change Requests (ECR)"
+              parent="menu_pg_change"
+              action="action_pg_change_request"
+              sequence="10"/>
+
+    <!-- ── Manufacturing ─────────────────────────────────────────── -->
+    <menuitem id="menu_pg_manufacturing"
+              name="Manufacturing"
+              parent="menu_pg_root"
+              sequence="30"/>
+
+    <menuitem id="menu_pg_release"
+              name="Releases"
+              parent="menu_pg_manufacturing"
+              action="action_pg_release"
+              sequence="10"/>
+
+    <!-- ── Assets (Digital Twin) ─────────────────────────────────── -->
+    <menuitem id="menu_pg_assets"
+              name="Assets"
+              parent="menu_pg_root"
+              sequence="40"/>
+
+    <menuitem id="menu_pg_asset"
+              name="Installed Assets"
+              parent="menu_pg_assets"
+              action="action_pg_asset"
+              sequence="10"/>
+
+    <!-- ── Reporting ──────────────────────────────────────────────── -->
+    <menuitem id="menu_pg_reporting"
+              name="Reporting"
+              parent="menu_pg_root"
+              sequence="50"/>
+
+    <menuitem id="menu_pg_audit_log"
+              name="Audit Log"
+              parent="menu_pg_reporting"
+              action="action_pg_audit_log"
+              sequence="10"
+              groups="product_graph.group_pg_admin,product_graph.group_pg_release_manager"/>
+
+    <!-- ── Configuration ─────────────────────────────────────────── -->
+    <menuitem id="menu_pg_config"
+              name="Configuration"
+              parent="menu_pg_root"
+              sequence="100"/>
+
+    <menuitem id="menu_pg_category"
+              name="Engineering Categories"
+              parent="menu_pg_config"
+              action="action_pg_category"
+              sequence="10"/>
+
+    <menuitem id="menu_pg_item_tag"
+              name="Item Tags"
+              parent="menu_pg_config"
+              action="action_pg_item_tag"
+              sequence="20"/>
+
+</odoo>

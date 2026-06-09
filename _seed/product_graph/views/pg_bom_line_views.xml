@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         pg.bom.line — standalone list view
+         ============================================================ -->
+
+    <record id="view_pg_bom_line_list" model="ir.ui.view">
+        <field name="name">pg.bom.line.list</field>
+        <field name="model">pg.bom.line</field>
+        <field name="arch" type="xml">
+            <list string="Engineering BOM Lines">
+                <field name="revision_id"/>
+                <field name="sequence" widget="handle"/>
+                <field name="component_item_id"/>
+                <field name="component_number"/>
+                <field name="product_qty"/>
+                <field name="product_uom_id"/>
+                <field name="bom_line_type"/>
+                <field name="reference"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_pg_bom_line" model="ir.actions.act_window">
+        <field name="name">Engineering BOM Lines</field>
+        <field name="res_model">pg.bom.line</field>
+        <field name="view_mode">list</field>
+    </record>
+
+</odoo>

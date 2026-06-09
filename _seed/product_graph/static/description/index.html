@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  body { font-family: Arial, sans-serif; color: #333; line-height: 1.7; max-width: 900px; margin: 0 auto; padding: 24px; }
+  h1   { color: #1565c0; font-size: 2em; border-bottom: 3px solid #1565c0; padding-bottom: 8px; }
+  h2   { color: #1565c0; margin-top: 32px; }
+  h3   { color: #0d47a1; }
+  .badge { display: inline-block; background: #e3f2fd; color: #1565c0; border-radius: 4px;
+           padding: 2px 10px; margin: 2px; font-size: 0.85em; font-weight: bold; }
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }
+  .feature-card { background: #f5f9ff; border-left: 4px solid #1565c0;
+                  border-radius: 4px; padding: 14px 18px; }
+  .feature-card h3 { margin: 0 0 6px; font-size: 1em; }
+  .feature-card p  { margin: 0; font-size: 0.9em; color: #555; }
+  .warning-box { background: #fff8e1; border: 1px solid #ffc107; border-radius: 4px;
+                 padding: 12px 16px; margin: 16px 0; }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  code { background: #f0f0f0; border-radius: 3px; padding: 1px 5px; font-size: 0.9em; }
+  table { border-collapse: collapse; width: 100%; }
+  th { background: #1565c0; color: #fff; padding: 8px 12px; text-align: left; }
+  td { padding: 8px 12px; border-bottom: 1px solid #e0e0e0; }
+  tr:nth-child(even) td { background: #f5f9ff; }
+</style>
+</head>
+<body>
+
+<h1>ProductGraph – Engineering Lifecycle &amp; PLM</h1>
+
+<p>
+  <span class="badge">Odoo 19 CE</span>
+  <span class="badge">Manufacturing</span>
+  <span class="badge">PLM</span>
+  <span class="badge">Open Source LGPL-3</span>
+  <span class="badge">Co-developed with Claude AI</span>
+</p>
+
+<p>
+  <strong>ProductGraph</strong> gives engineering teams a governed, auditable path from
+  design intent to manufacturing. Items, revisions, and Bills of Materials live under
+  strict lifecycle rules, while Odoo's <code>mrp.bom</code> is created in exactly one
+  place — guaranteeing that nothing reaches the shop floor without a formal approval.
+</p>
+
+<h2>Key Features</h2>
+
+<div class="feature-grid">
+  <div class="feature-card">
+    <h3>📦 Item Registry</h3>
+    <p>A single source of truth for every engineering item, completely separate from
+    Odoo's product catalogue until formally released.</p>
+  </div>
+  <div class="feature-card">
+    <h3>🔄 Revision Control</h3>
+    <p>Full <strong>draft → in_review → approved → released → obsolete</strong> lifecycle.
+    Released revisions are immutable — changes require an ECR.</p>
+  </div>
+  <div class="feature-card">
+    <h3>⚡ Controlled BOM Release</h3>
+    <p><code>mrp.bom</code> records are created in exactly one code path:
+    <code>PgRelease.action_execute_release()</code>. No BOM reaches Odoo without
+    a Release Manager sign-off.</p>
+  </div>
+  <div class="feature-card">
+    <h3>📝 Change Request (ECR) Workflow</h3>
+    <p>Formal ECO/ECR process with impact analysis, approver routing, rejection
+    capture, and automatic revision creation on approval.</p>
+  </div>
+  <div class="feature-card">
+    <h3>🏭 Manufacturing Collision Detection</h3>
+    <p>Automatic detection of open Manufacturing Orders before obsolescence is
+    permitted. Prevents accidental production disruption.</p>
+  </div>
+  <div class="feature-card">
+    <h3>🔒 Full Audit Log</h3>
+    <p>Tamper-evident, append-only log of every state change and release event.
+    Write and delete are blocked at ORM level.</p>
+  </div>
+  <div class="feature-card">
+    <h3>🌐 REST API</h3>
+    <p>JSON endpoints for CAD tool integration, ERP bridges, and automated
+    testing. Health, items, revisions, and BOM endpoints included.</p>
+  </div>
+  <div class="feature-card">
+    <h3>🤖 Digital Twin Stubs</h3>
+    <p>Reserved schema path <code>pg.item → pg.asset → IoT device</code> for
+    Phase 2 telemetry — no migration required later.</p>
+  </div>
+</div>
+
+<h2>Architecture Principles</h2>
+
+<div class="warning-box">
+  <strong>Governance guarantee:</strong> ProductGraph owns <code>pg.*</code> — Odoo owns
+  <code>mrp.*</code>. The only way a Bill of Materials enters Odoo manufacturing is through
+  the formally gated Release process. No workarounds, no exceptions.
+</div>
+
+<ul>
+  <li>Released items and revisions are <strong>immutable</strong> at ORM level — not just
+      UI-locked.</li>
+  <li>All state transitions are guarded by explicit <code>_check_transition_allowed()</code>
+      with logged rejection reasons.</li>
+  <li>Audit log records raise <code>UserError</code> on any <code>write()</code> or
+      <code>unlink()</code> attempt.</li>
+  <li>BOM creation is a single, audited, role-gated operation.</li>
+</ul>
+
+<h2>Security Groups</h2>
+
+<table>
+  <tr><th>Group</th><th>Can Do</th></tr>
+  <tr><td>User (Read Only)</td><td>View all records</td></tr>
+  <tr><td>Engineer</td><td>Create/edit items, revisions, BOM lines, ECRs</td></tr>
+  <tr><td>Approver</td><td>Approve revisions and ECRs</td></tr>
+  <tr><td>Release Manager</td><td>Execute releases (create mrp.bom), obsolete items</td></tr>
+  <tr><td>Administrator</td><td>Full access including configuration and audit log</td></tr>
+</table>
+
+<h2>REST API Endpoints</h2>
+<table>
+  <tr><th>Method</th><th>URL</th><th>Auth</th></tr>
+  <tr><td>GET</td><td>/api/v1/productgraph/health</td><td>public</td></tr>
+  <tr><td>GET</td><td>/api/v1/productgraph/items</td><td>user</td></tr>
+  <tr><td>GET</td><td>/api/v1/productgraph/items/&lt;item_number&gt;</td><td>user</td></tr>
+  <tr><td>GET</td><td>/api/v1/productgraph/items/&lt;item_number&gt;/revisions</td><td>user</td></tr>
+  <tr><td>GET</td><td>/api/v1/productgraph/revisions/&lt;id&gt;/bom</td><td>user</td></tr>
+  <tr><td>POST</td><td>/api/v1/productgraph/items</td><td>engineer</td></tr>
+</table>
+
+<h2>Installation</h2>
+<ol>
+  <li>Download and extract to your Odoo addons path.</li>
+  <li>Restart the Odoo server: <code>./odoo-bin -c odoo.conf</code></li>
+  <li>Update the module list in Settings → Technical → Update Module List.</li>
+  <li>Install <strong>ProductGraph</strong> from Apps.</li>
+  <li>Assign users to ProductGraph groups under Settings → Users.</li>
+</ol>
+
+<h2>Compatibility</h2>
+<p>Odoo <strong>19.0 Community Edition</strong>. Depends on:
+<code>base</code>, <code>mail</code>, <code>product</code>,
+<code>mrp</code>, <code>stock</code>, <code>web</code>.</p>
+
+<h2>License</h2>
+<p>LGPL-3. Co-developed with <strong>Claude AI (Anthropic)</strong>.</p>
+
+</body>
+</html>

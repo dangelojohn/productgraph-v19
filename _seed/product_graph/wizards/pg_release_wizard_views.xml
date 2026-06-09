@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_release_wizard_form" model="ir.ui.view">
+        <field name="name">pg.release.wizard.form</field>
+        <field name="model">pg.release.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Release to Manufacturing">
+                <sheet>
+                    <div class="o_setting_box">
+                        <div class="o_setting_left_pane"/>
+                        <div class="o_setting_right_pane">
+                            <h2>Release Revision to Manufacturing</h2>
+                            <p class="text-muted">
+                                This will create an <strong>mrp.bom</strong> and mark the
+                                revision as <strong>Released</strong>. This action cannot be undone.
+                            </p>
+                        </div>
+                    </div>
+
+                    <group string="Releasing">
+                        <field name="item_id"      readonly="1"/>
+                        <field name="revision_id"  readonly="1"/>
+                        <field name="bom_line_count" string="BOM Lines" readonly="1"/>
+                        <field name="previous_bom_name" string="Previous BOM" readonly="1"/>
+                        <field name="effective_date"/>
+                    </group>
+
+                    <group string="Pre-flight Checks">
+                        <field name="warning_html" widget="html" nolabel="1"/>
+                    </group>
+
+                    <group string="Options">
+                        <field name="archive_previous_bom" widget="boolean_toggle"/>
+                    </group>
+
+                    <group string="Release Notes">
+                        <field name="release_notes" nolabel="1"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_confirm_release"
+                            string="⚡ Execute Release"
+                            type="object"
+                            class="btn btn-primary"/>
+                    <button string="Cancel" class="btn btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

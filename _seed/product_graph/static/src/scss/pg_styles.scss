@@ -1,0 +1,56 @@
+// ProductGraph — Backend Styles
+// Compatible with Odoo 19 Bootstrap 5 base
+
+// ─── Color variables ──────────────────────────────────────────────────────────
+$pg-blue:     #1565c0;
+$pg-green:    #2e7d32;
+$pg-orange:   #e65100;
+$pg-red:      #c62828;
+$pg-grey:     #757575;
+$pg-released: #e8f5e9;
+$pg-inrev:    #fff8e1;
+$pg-draft:    #f5f5f5;
+
+// ─── State badges ─────────────────────────────────────────────────────────────
+.o_field_widget .o_statusbar_status .o_arrow_button {
+    &.btn-released  { background-color: $pg-green;  color: #fff; }
+    &.btn-obsolete  { background-color: $pg-grey;   color: #fff; }
+    &.btn-approved  { background-color: $pg-blue;   color: #fff; }
+    &.btn-in_review { background-color: $pg-orange; color: #fff; }
+}
+
+// ─── Kanban column colouring ──────────────────────────────────────────────────
+.o_kanban_group[data-state="released"]   .o_kanban_header { background-color: $pg-released; }
+.o_kanban_group[data-state="in_review"]  .o_kanban_header { background-color: $pg-inrev;    }
+.o_kanban_group[data-state="draft"]      .o_kanban_header { background-color: $pg-draft;    }
+
+// ─── Item form — smart button accent ─────────────────────────────────────────
+.o_form_view .oe_button_box .oe_stat_button:hover {
+    border-color: $pg-blue;
+    color: $pg-blue;
+}
+
+// ─── Released record banner ───────────────────────────────────────────────────
+.o_form_view.o_pg_released_banner {
+    border-top: 3px solid $pg-green;
+}
+
+// ─── Audit log — read-only indicator ─────────────────────────────────────────
+.o_list_view.model_pg_audit_log {
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(0, 0, 0, 0.01) 10px,
+        rgba(0, 0, 0, 0.01) 20px
+    );
+}
+
+// ─── Release wizard warning box ───────────────────────────────────────────────
+.pg_warning_box {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+}

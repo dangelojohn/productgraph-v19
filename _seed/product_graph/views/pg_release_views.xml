@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_release_form" model="ir.ui.view">
+        <field name="name">pg.release.form</field>
+        <field name="model">pg.release</field>
+        <field name="arch" type="xml">
+            <form string="Release Record">
+                <header>
+                    <button name="action_execute_release"
+                            string="⚡ Execute Release"
+                            type="object"
+                            class="oe_highlight"
+                            invisible="state != 'pending'"
+                            groups="product_graph.group_pg_release_manager"
+                            confirm="This will create an mrp.bom and mark the revision Released. Proceed?"/>
+                    <button name="action_cancel"
+                            string="Cancel"
+                            type="object"
+                            invisible="state not in ['pending']"/>
+                    <button name="action_reset_to_pending"
+                            string="Reset to Pending"
+                            type="object"
+                            invisible="state not in ['failed','cancelled']"/>
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="pending,executed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="What is being released">
+                            <field name="item_id"
+                                   readonly="state != 'pending'"/>
+                            <field name="revision_id"
+                                   readonly="state != 'pending'"
+                                   domain="[('item_id','=',item_id),('state','=','approved')]"/>
+                            <field name="effective_date"
+                                   readonly="state != 'pending'"/>
+                        </group>
+                        <group string="Options">
+                            <field name="archive_previous_bom"
+                                   widget="boolean_toggle"
+                                   readonly="state != 'pending'"/>
+                            <field name="create_product"
+                                   widget="boolean_toggle"
+                                   readonly="state != 'pending'"/>
+                        </group>
+                    </group>
+                    <group invisible="state != 'executed'" string="Release Result">
+                        <field name="release_date"   readonly="1"/>
+                        <field name="released_by_id" readonly="1"/>
+                        <field name="product_id"     readonly="1"/>
+                        <field name="mrp_bom_id"     readonly="1"/>
+                    </group>
+                    <group invisible="state != 'failed'" string="Failure Details">
+                        <field name="failure_reason" readonly="1"/>
+                    </group>
+                    <group string="Release Notes">
+                        <field name="release_notes" nolabel="1"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_pg_release_list" model="ir.ui.view">
+        <field name="name">pg.release.list</field>
+        <field name="model">pg.release</field>
+        <field name="arch" type="xml">
+            <list string="Releases"
+                  decoration-success="state == 'executed'"
+                  decoration-danger="state == 'failed'"
+                  decoration-muted="state == 'cancelled'">
+                <field name="name"/>
+                <field name="item_id"/>
+                <field name="revision_id"/>
+                <field name="state"/>
+                <field name="release_date"/>
+                <field name="released_by_id"/>
+                <field name="mrp_bom_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_release_search" model="ir.ui.view">
+        <field name="name">pg.release.search</field>
+        <field name="model">pg.release</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="item_id"/>
+                <filter string="Pending"  name="pending"  domain="[('state','=','pending')]"/>
+                <filter string="Executed" name="executed" domain="[('state','=','executed')]"/>
+                <filter string="Failed"   name="failed"   domain="[('state','=','failed')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Item"   name="group_item"  context="{'group_by': 'item_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pg_release" model="ir.actions.act_window">
+        <field name="name">Releases</field>
+        <field name="res_model">pg.release</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_pg_release_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No releases yet.
+            </p>
+            <p>
+                Releases are created from an approved revision via the
+                "Release to Manufacturing…" button.
+            </p>
+        </field>
+    </record>
+
+</odoo>

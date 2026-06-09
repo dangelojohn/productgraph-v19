@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+
+        <!-- ============================================================
+             Security Category
+             ============================================================ -->
+        <record id="module_category_pg" model="ir.module.category">
+            <field name="name">ProductGraph</field>
+            <field name="description">Manages access to ProductGraph PLM features.</field>
+            <field name="sequence">50</field>
+        </record>
+
+        <!-- ============================================================
+             Security Groups — hierarchical (each inherits parent)
+             ============================================================ -->
+
+        <!-- Level 1: Read-only user -->
+        <record id="group_pg_user" model="res.groups">
+            <field name="name">User (Read Only)</field>
+            <field name="category_id" ref="module_category_pg"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">
+                Can view items, revisions, releases, and change requests.
+                Cannot create or modify any records.
+            </field>
+        </record>
+
+        <!-- Level 2: Engineer — can create/edit items and revisions -->
+        <record id="group_pg_engineer" model="res.groups">
+            <field name="name">Engineer</field>
+            <field name="category_id" ref="module_category_pg"/>
+            <field name="implied_ids" eval="[(4, ref('group_pg_user'))]"/>
+            <field name="comment">
+                Can create and edit items, revisions, BOM lines, and ECRs.
+                Cannot approve or release.
+            </field>
+        </record>
+
+        <!-- Level 3: Approver — can approve revisions and ECRs -->
+        <record id="group_pg_approver" model="res.groups">
+            <field name="name">Approver</field>
+            <field name="category_id" ref="module_category_pg"/>
+            <field name="implied_ids" eval="[(4, ref('group_pg_engineer'))]"/>
+            <field name="comment">
+                Can approve revisions and engineering change requests.
+            </field>
+        </record>
+
+        <!-- Level 4: Release Manager — the sole authority over mrp.bom creation -->
+        <record id="group_pg_release_manager" model="res.groups">
+            <field name="name">Release Manager</field>
+            <field name="category_id" ref="module_category_pg"/>
+            <field name="implied_ids" eval="[(4, ref('group_pg_approver'))]"/>
+            <field name="comment">
+                Can execute releases — the ONLY group that can trigger
+                action_execute_release() and therefore create mrp.bom records
+                from ProductGraph. Also can obsolete released items.
+            </field>
+        </record>
+
+        <!-- Level 5: Administrator — full access including configuration -->
+        <record id="group_pg_admin" model="res.groups">
+            <field name="name">Administrator</field>
+            <field name="category_id" ref="module_category_pg"/>
+            <field name="implied_ids" eval="[(4, ref('group_pg_release_manager'))]"/>
+            <field name="users" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">
+                Full access including configuration, audit log, and deletion of
+                draft/obsolete records.
+            </field>
+        </record>
+
+    </data>
+</odoo>

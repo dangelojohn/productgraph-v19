@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Item sequence: PG-00001, PG-00002, … -->
+        <record id="seq_pg_item" model="ir.sequence">
+            <field name="name">ProductGraph Item</field>
+            <field name="code">pg.item</field>
+            <field name="prefix">PG-</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <!-- Release sequence: REL-2025-0001 -->
+        <record id="seq_pg_release" model="ir.sequence">
+            <field name="name">ProductGraph Release</field>
+            <field name="code">pg.release</field>
+            <field name="prefix">REL-%(year)s-</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <!-- ECR sequence: ECR-2025-0001 -->
+        <record id="seq_pg_change_request" model="ir.sequence">
+            <field name="name">ProductGraph Change Request</field>
+            <field name="code">pg.change.request</field>
+            <field name="prefix">ECR-%(year)s-</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+    </data>
+</odoo>

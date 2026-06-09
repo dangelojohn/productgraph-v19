@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         pg.category — Engineering Category
+         ============================================================ -->
+
+    <record id="view_pg_category_tree" model="ir.ui.view">
+        <field name="name">pg.category.tree</field>
+        <field name="model">pg.category</field>
+        <field name="arch" type="xml">
+            <list string="Engineering Categories">
+                <field name="complete_name"/>
+                <field name="code"/>
+                <field name="item_count" string="Items"/>
+                <field name="active" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_category_form" model="ir.ui.view">
+        <field name="name">pg.category.form</field>
+        <field name="model">pg.category</field>
+        <field name="arch" type="xml">
+            <form string="Engineering Category">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Category Name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="parent_id"/>
+                            <field name="item_count" string="Items" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="active" widget="boolean_toggle"/>
+                            <field name="color" widget="color_picker"/>
+                        </group>
+                    </group>
+                    <group string="Description">
+                        <field name="description" nolabel="1"/>
+                    </group>
+                    <group string="Sub-categories">
+                        <field name="child_ids" nolabel="1">
+                            <list>
+                                <field name="complete_name"/>
+                                <field name="code"/>
+                                <field name="item_count"/>
+                            </list>
+                        </field>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_pg_category_search" model="ir.ui.view">
+        <field name="name">pg.category.search</field>
+        <field name="model">pg.category</field>
+        <field name="arch" type="xml">
+            <search string="Search Categories">
+                <field name="name"/>
+                <field name="code"/>
+                <filter string="Archived" name="inactive" domain="[('active','=',False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Parent Category" name="group_parent" context="{'group_by': 'parent_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pg_category" model="ir.actions.act_window">
+        <field name="name">Engineering Categories</field>
+        <field name="res_model">pg.category</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'active_test': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first engineering category
+            </p>
+            <p>
+                Categories help organise items (Mechanical, Electrical, Software, etc.)
+            </p>
+        </field>
+    </record>
+
+    <!-- ============================================================
+         pg.item.tag — Item Tags
+         ============================================================ -->
+
+    <record id="view_pg_item_tag_list" model="ir.ui.view">
+        <field name="name">pg.item.tag.list</field>
+        <field name="model">pg.item.tag</field>
+        <field name="arch" type="xml">
+            <list string="Item Tags" editable="bottom">
+                <field name="name"/>
+                <field name="color" widget="color_picker"/>
+                <field name="item_count" string="Items"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_item_tag_form" model="ir.ui.view">
+        <field name="name">pg.item.tag.form</field>
+        <field name="model">pg.item.tag</field>
+        <field name="arch" type="xml">
+            <form string="Item Tag">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="color" widget="color_picker"/>
+                        <field name="item_count" string="Items" readonly="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_pg_item_tag" model="ir.actions.act_window">
+        <field name="name">Item Tags</field>
+        <field name="res_model">pg.item.tag</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create tags to organise your engineering items
+            </p>
+        </field>
+    </record>
+
+</odoo>

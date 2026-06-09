@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         pg.asset — Digital Twin
+         ============================================================ -->
+
+    <record id="view_pg_asset_form" model="ir.ui.view">
+        <field name="name">pg.asset.form</field>
+        <field name="model">pg.asset</field>
+        <field name="arch" type="xml">
+            <form string="Installed Asset">
+                <header>
+                    <button name="action_retire"
+                            string="Retire Asset"
+                            type="object"
+                            confirm="Retire this asset? It will be archived."
+                            invisible="state == 'retired'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="active,maintenance,retired"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Asset name…"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="item_id"/>
+                            <field name="revision_id"/>
+                            <field name="serial_number"/>
+                        </group>
+                        <group>
+                            <field name="location"/>
+                            <field name="install_date"/>
+                            <field name="retire_date" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Phase 2 — IoT Telemetry (reserved)">
+                        <field name="iot_device_id"  readonly="1"/>
+                        <field name="last_telemetry" readonly="1"/>
+                    </group>
+                    <group string="Notes">
+                        <field name="notes" nolabel="1"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_pg_asset_list" model="ir.ui.view">
+        <field name="name">pg.asset.list</field>
+        <field name="model">pg.asset</field>
+        <field name="arch" type="xml">
+            <list string="Installed Assets"
+                  decoration-muted="state == 'retired'"
+                  decoration-warning="state == 'maintenance'">
+                <field name="name"/>
+                <field name="serial_number"/>
+                <field name="item_id"/>
+                <field name="revision_id"/>
+                <field name="state"/>
+                <field name="location"/>
+                <field name="install_date"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_asset_search" model="ir.ui.view">
+        <field name="name">pg.asset.search</field>
+        <field name="model">pg.asset</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="serial_number"/>
+                <field name="item_id"/>
+                <filter string="Active"      name="active"      domain="[('state','=','active')]"/>
+                <filter string="Maintenance" name="maintenance" domain="[('state','=','maintenance')]"/>
+                <filter string="Retired"     name="retired"     domain="[('active','=',False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Item"     name="group_item"  context="{'group_by': 'item_id'}"/>
+                    <filter string="Status"   name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Location" name="group_loc"   context="{'group_by': 'location'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pg_asset" model="ir.actions.act_window">
+        <field name="name">Installed Assets</field>
+        <field name="res_model">pg.asset</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No assets registered yet (Digital Twin — Phase 2)
+            </p>
+        </field>
+    </record>
+
+</odoo>

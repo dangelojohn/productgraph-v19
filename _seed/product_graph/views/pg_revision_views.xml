@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_revision_form" model="ir.ui.view">
+        <field name="name">pg.revision.form</field>
+        <field name="model">pg.revision</field>
+        <field name="arch" type="xml">
+            <form string="Revision">
+                <header>
+                    <button name="action_submit_for_review"
+                            string="Submit for Review"
+                            type="object"
+                            class="oe_highlight"
+                            invisible="state != 'draft'"/>
+                    <button name="action_approve"
+                            string="Approve"
+                            type="object"
+                            class="oe_highlight"
+                            invisible="state != 'in_review'"
+                            groups="product_graph.group_pg_approver"/>
+                    <button name="action_reject_to_review"
+                            string="Return to Review"
+                            type="object"
+                            invisible="state != 'approved'"/>
+                    <button name="action_release"
+                            string="Release to Manufacturing…"
+                            type="object"
+                            class="oe_highlight"
+                            invisible="state != 'approved'"
+                            groups="product_graph.group_pg_release_manager"/>
+                    <button name="action_return_to_draft"
+                            string="Return to Draft"
+                            type="object"
+                            invisible="state != 'in_review'"/>
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="draft,in_review,approved,released"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_documents"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-file"
+                                invisible="document_count == 0">
+                            <field name="document_count" widget="statinfo" string="Docs"/>
+                        </button>
+                    </div>
+
+                    <div class="oe_title">
+                        <label for="item_id"/>
+                        <h1><field name="item_id" readonly="1"/></h1>
+                        <label for="revision_code"/>
+                        <h2>
+                            Revision
+                            <field name="revision_code"
+                                   style="display:inline"
+                                   readonly="state in ['released','approved']"/>
+                        </h2>
+                    </div>
+
+                    <group>
+                        <group string="Details">
+                            <field name="sequence"/>
+                            <field name="incompatible_with_previous" widget="boolean_toggle"/>
+                            <field name="parent_revision_id"/>
+                            <field name="change_request_id" readonly="1"/>
+                        </group>
+                        <group string="Review Trail">
+                            <field name="reviewer_id"/>
+                            <field name="approver_id"/>
+                            <field name="approved_by_id" readonly="1"/>
+                            <field name="approved_date"  readonly="1"/>
+                            <field name="released_by_id" readonly="1"/>
+                            <field name="released_date"  readonly="1"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Engineering BOM" name="bom">
+                            <field name="bom_line_ids"
+                                   readonly="state in ['released','approved']">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="component_item_id"/>
+                                    <field name="component_number" readonly="1"/>
+                                    <field name="component_revision_id"
+                                           domain="[('item_id','=',component_item_id),('state','=','released')]"/>
+                                    <field name="product_qty"/>
+                                    <field name="product_uom_id"/>
+                                    <field name="bom_line_type"/>
+                                    <field name="reference"/>
+                                    <field name="notes"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="mrp.bom" name="mrp_bom"
+                              invisible="state != 'released'">
+                            <group>
+                                <field name="mrp_bom_id" readonly="1"/>
+                            </group>
+                        </page>
+                        <page string="Description / Change Notes" name="desc">
+                            <field name="description"/>
+                        </page>
+                        <page string="Documents" name="docs">
+                            <field name="document_ids" widget="many2many_binary"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_pg_revision_list" model="ir.ui.view">
+        <field name="name">pg.revision.list</field>
+        <field name="model">pg.revision</field>
+        <field name="arch" type="xml">
+            <list string="Revisions"
+                  decoration-success="state == 'released'"
+                  decoration-warning="state in ['in_review','approved']"
+                  decoration-muted="state == 'obsolete'">
+                <field name="item_id"/>
+                <field name="revision_code"/>
+                <field name="state"/>
+                <field name="bom_line_count" string="Components"/>
+                <field name="reviewer_id"/>
+                <field name="approved_date"/>
+                <field name="released_date"/>
+                <field name="mrp_bom_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_revision_search" model="ir.ui.view">
+        <field name="name">pg.revision.search</field>
+        <field name="model">pg.revision</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="display_name_full"/>
+                <field name="item_id"/>
+                <field name="revision_code"/>
+                <filter string="Draft"    name="draft"    domain="[('state','=','draft')]"/>
+                <filter string="In Review" name="review"  domain="[('state','=','in_review')]"/>
+                <filter string="Approved" name="approved" domain="[('state','=','approved')]"/>
+                <filter string="Released" name="released" domain="[('state','=','released')]"/>
+                <separator/>
+                <filter string="Ready to Release" name="ready"
+                        domain="[('state','=','approved')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Item"   name="group_item"  context="{'group_by': 'item_id'}"/>
+                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pg_revision" model="ir.actions.act_window">
+        <field name="name">Revisions</field>
+        <field name="res_model">pg.revision</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_pg_revision_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No revisions yet.</p>
+        </field>
+    </record>
+
+    <record id="action_pg_revision_pending_release" model="ir.actions.act_window">
+        <field name="name">Ready to Release</field>
+        <field name="res_model">pg.revision</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state','=','approved')]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No revisions awaiting release.
+            </p>
+        </field>
+    </record>
+
+</odoo>
