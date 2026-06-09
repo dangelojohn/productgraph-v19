@@ -10,7 +10,32 @@ class TestPgPropertyValue(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.cat = cls.env.ref('product_graph_base.cat_mechanical')
-        cls.tmpl_mech = cls.env.ref('product_graph_base.prop_tmpl_cabinet_mech')
+        # Build property template + fields inline so the test does not
+        # depend on demo data being loaded (demo data only loads when
+        # Odoo creates the database itself, which is not the case in
+        # CI / test-DB setups that pre-create the DB with createdb).
+        cls.tmpl_mech = cls.env['pg.property.template'].create({
+            'name': 'Cabinet Mechanical (test)',
+            'code': 'TEST_CABINET_MECH',
+            'item_type': 'assembly',
+            'description': 'Test fixture for TestPgPropertyValue.',
+        })
+        cls.fld_width = cls.env['pg.property.field'].create({
+            'template_id': cls.tmpl_mech.id,
+            'key': 'width_mm',
+            'label': 'Width (mm)',
+            'field_type': 'integer',
+            'is_required': True,
+            'sequence': 10,
+        })
+        cls.fld_material = cls.env['pg.property.field'].create({
+            'template_id': cls.tmpl_mech.id,
+            'key': 'core_material',
+            'label': 'Core Material',
+            'field_type': 'selection',
+            'selection_options': 'MDF,Plywood,Particleboard,Solid Wood',
+            'sequence': 40,
+        })
 
     def _make_item(self):
         return self.env['pg.item'].create({
@@ -30,10 +55,9 @@ class TestPgPropertyValue(TransactionCase):
     def test_integer_value_stored_and_displayed(self):
         item = self._make_item()
         rev = self._make_revision(item)
-        width = self.env.ref('product_graph_base.prop_fld_cabinet_width')
         val = self.env['pg.property.value'].create({
             'revision_id': rev.id,
-            'field_id': width.id,
+            'field_id': self.fld_width.id,
             'value_integer': 600,
         })
         self.assertEqual(val.display_value, '600')
@@ -41,11 +65,10 @@ class TestPgPropertyValue(TransactionCase):
     def test_selection_value_must_be_in_options(self):
         item = self._make_item()
         rev = self._make_revision(item)
-        material = self.env.ref('product_graph_base.prop_fld_cabinet_material')
         with self.assertRaises(ValidationError):
             self.env['pg.property.value'].create({
                 'revision_id': rev.id,
-                'field_id': material.id,
+                'field_id': self.fld_material.id,
                 'value_selection': 'Concrete',
             })
 
@@ -61,10 +84,9 @@ class TestPgPropertyValue(TransactionCase):
             'name': 'A',
             'change_summary': 'Test without templates attached.',
         })
-        width = self.env.ref('product_graph_base.prop_fld_cabinet_width')
         with self.assertRaises(ValidationError):
             self.env['pg.property.value'].create({
                 'revision_id': rev.id,
-                'field_id': width.id,
+                'field_id': self.fld_width.id,
                 'value_integer': 600,
             })
