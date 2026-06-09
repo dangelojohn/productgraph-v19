@@ -454,14 +454,19 @@ class PgRevision(models.Model):
             'product_graph_base.group_pg_approver', raise_if_not_found=False,
         )
         if approver_group:
-            self.message_subscribe(partner_ids=approver_group.users.partner_id.ids)
+            # Odoo 19 removed res.groups.users — query the inverse side.
+            users = self.env['res.users'].search([('group_ids', 'in', approver_group.id)])
+            if users:
+                self.message_subscribe(partner_ids=users.partner_id.ids)
 
     def _notify_manufacturing(self):
         mfg_group = self.env.ref(
             'product_graph_base.group_pg_mfg', raise_if_not_found=False,
         )
         if mfg_group:
-            self.message_subscribe(partner_ids=mfg_group.users.partner_id.ids)
+            users = self.env['res.users'].search([('group_ids', 'in', mfg_group.id)])
+            if users:
+                self.message_subscribe(partner_ids=users.partner_id.ids)
 
     # ═════════════════════════════════════════════════════════════════════════
     # UI actions
