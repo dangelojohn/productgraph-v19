@@ -106,7 +106,7 @@
                                     <field name="product_id"/>
                                     <field name="product_qty"/>
                                     <field name="state" widget="badge"/>
-                                    <field name="date_planned_start"/>
+                                    <field name="date_start"/>
                                 </list>
                             </field>
                         </page>
