@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- TODO: replace `southbrook_plm.view_southbrook_plm_eco_form` with the
+         actual existing form view xml_id once confirmed. -->
+    <record id="view_southbrook_plm_eco_form_inherit_pg" model="ir.ui.view">
+        <field name="name">southbrook_plm.eco.form.inherit.product_graph</field>
+        <field name="model">southbrook_plm.eco</field>
+        <field name="inherit_id" ref="southbrook_plm.view_southbrook_plm_eco_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <group string="ProductGraph Release" name="pg_release_group">
+                    <group>
+                        <field name="pg_ebom_id"/>
+                        <field name="pg_auto_release"/>
+                    </group>
+                    <group>
+                        <field name="pg_release_id" readonly="1"/>
+                        <field name="pg_release_reason"
+                               placeholder="Reason for the auto-release on ECO close…"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
