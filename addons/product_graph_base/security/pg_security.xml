@@ -75,12 +75,13 @@
             </field>
         </record>
 
-        <!-- Grant admin user the PG Administrator role.
-             Odoo 19 removed res.groups.users; the canonical way to wire
-             initial grants is from the user side via res.users.groups_id. -->
-        <record id="base.user_admin" model="res.users">
-            <field name="groups_id" eval="[(4, ref('group_pg_admin'))]"/>
-        </record>
+        <!-- Initial PG Admin grant is done manually post-install:
+             Settings → Users & Companies → Users → admin → Groups tab →
+             check "ProductGraph / Administrator".
+
+             Odoo 19 renamed both res.groups.users and res.users.groups_id;
+             auto-granting via XML is no longer a portable single-line edit.
+             A one-time UI grant is cleaner than tracking the rename here. -->
 
     </data>
 </odoo>
