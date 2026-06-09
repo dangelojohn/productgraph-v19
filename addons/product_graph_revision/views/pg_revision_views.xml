@@ -118,17 +118,17 @@
                                     <field name="field_label" optional="hide"/>
                                     <field name="field_type"/>
                                     <field name="value_char"
-                                           column_invisible="parent.field_type != 'char'"/>
+                                           invisible="field_type != 'char'"/>
                                     <field name="value_integer"
-                                           column_invisible="parent.field_type != 'integer'"/>
+                                           invisible="field_type != 'integer'"/>
                                     <field name="value_float"
-                                           column_invisible="parent.field_type != 'float'"/>
+                                           invisible="field_type != 'float'"/>
                                     <field name="value_boolean" widget="boolean_toggle"
-                                           column_invisible="parent.field_type != 'boolean'"/>
+                                           invisible="field_type != 'boolean'"/>
                                     <field name="value_date"
-                                           column_invisible="parent.field_type != 'date'"/>
+                                           invisible="field_type != 'date'"/>
                                     <field name="value_selection"
-                                           column_invisible="parent.field_type != 'selection'"/>
+                                           invisible="field_type != 'selection'"/>
                                     <field name="field_uom_id" optional="hide"/>
                                 </list>
                             </field>

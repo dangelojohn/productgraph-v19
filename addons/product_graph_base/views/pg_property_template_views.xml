@@ -50,7 +50,7 @@
                                     <field name="field_type"/>
                                     <field name="is_required" widget="boolean_toggle"/>
                                     <field name="selection_options"
-                                           column_invisible="parent.field_type != 'selection'"
+                                           invisible="field_type != 'selection'"
                                            placeholder="S,M,L"/>
                                     <field name="uom_id" optional="hide"/>
                                     <field name="default_value" optional="hide"/>
