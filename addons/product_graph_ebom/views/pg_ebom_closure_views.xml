@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_ebom_closure_list" model="ir.ui.view">
+        <field name="name">pg.ebom.closure.list</field>
+        <field name="model">pg.ebom.closure</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="ebom_id"/>
+                <field name="ancestor_id"/>
+                <field name="depth"/>
+                <field name="descendant_id"/>
+                <field name="qty_chain"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_ebom_closure_search" model="ir.ui.view">
+        <field name="name">pg.ebom.closure.search</field>
+        <field name="model">pg.ebom.closure</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="ebom_id"/>
+                <field name="ancestor_id"/>
+                <field name="descendant_id"/>
+                <filter string="Direct Children Only" name="direct"
+                        domain="[('depth','=',1)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="EBOM" name="grp_ebom" context="{'group_by':'ebom_id'}"/>
+                    <filter string="Ancestor" name="grp_anc" context="{'group_by':'ancestor_id'}"/>
+                    <filter string="Depth" name="grp_depth" context="{'group_by':'depth'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pg_ebom_closure" model="ir.actions.act_window">
+        <field name="name">EBOM Closure (Where Used / Explosion)</field>
+        <field name="res_model">pg.ebom.closure</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                The closure is automatically rebuilt when EBOMs are released.
+            </p>
+        </field>
+    </record>
+
+</odoo>

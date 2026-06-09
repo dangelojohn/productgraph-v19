@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ─── List ────────────────────────────────────────────────────────── -->
+    <record id="view_pg_ebom_list" model="ir.ui.view">
+        <field name="name">pg.ebom.list</field>
+        <field name="model">pg.ebom</field>
+        <field name="arch" type="xml">
+            <list decoration-info="state == 'review'"
+                  decoration-success="state == 'released'"
+                  decoration-muted="state == 'superseded'">
+                <field name="name"/>
+                <field name="root_item_id"/>
+                <field name="revision_id"/>
+                <field name="ebom_type"/>
+                <field name="state" widget="badge"/>
+                <field name="line_count" string="# Lines"/>
+                <field name="effective_date"/>
+                <field name="released_by_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ─── Form ────────────────────────────────────────────────────────── -->
+    <record id="view_pg_ebom_form" model="ir.ui.view">
+        <field name="name">pg.ebom.form</field>
+        <field name="model">pg.ebom</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit_for_review" string="Submit for Review"
+                            type="object" class="oe_highlight"
+                            invisible="state != 'draft'"
+                            groups="product_graph_base.group_pg_engineer"/>
+                    <button name="action_validate" string="Validate"
+                            type="object"
+                            invisible="state == 'superseded'"
+                            help="Run pre-release checks without changing state."/>
+                    <button name="action_release" string="Release"
+                            type="object" class="oe_highlight"
+                            confirm="Release this EBOM? Released EBOMs are immutable and supersede the previous active EBOM for this item."
+                            invisible="state != 'review'"
+                            groups="product_graph_base.group_pg_approver"/>
+                    <button name="action_reject_to_draft" string="Reject"
+                            type="object"
+                            invisible="state != 'review'"
+                            groups="product_graph_base.group_pg_approver"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,review,released"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_where_used" type="object"
+                                class="oe_stat_button" icon="fa-sitemap">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Where Used</span>
+                            </div>
+                        </button>
+                        <button name="action_view_explosion" type="object"
+                                class="oe_stat_button" icon="fa-bars"
+                                invisible="state != 'released'">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Explosion</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="display_name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name" readonly="state != 'draft'"/>
+                            <field name="root_item_id" readonly="state != 'draft'"/>
+                            <field name="revision_id" readonly="state != 'draft'"/>
+                            <field name="ebom_type" readonly="state != 'draft'"/>
+                        </group>
+                        <group>
+                            <field name="effective_date" readonly="1"
+                                   invisible="state in ('draft','review')"/>
+                            <field name="released_by_id" readonly="1"
+                                   invisible="state in ('draft','review')"/>
+                            <field name="release_timestamp" readonly="1"
+                                   invisible="state in ('draft','review')"/>
+                            <field name="successor_ebom_id" readonly="1"
+                                   invisible="state != 'superseded'"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Components" name="page_lines">
+                            <field name="ebom_line_ids">
+                                <list editable="bottom" multi_edit="1">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="pg_item_id"
+                                           options="{'no_create_edit': True}"/>
+                                    <field name="part_number" readonly="1"/>
+                                    <field name="item_state" widget="badge"
+                                           decoration-success="item_state == 'released'"
+                                           decoration-info="item_state == 'engineering'"/>
+                                    <field name="product_qty"/>
+                                    <field name="uom_id"/>
+                                    <field name="reference"/>
+                                    <field name="bom_line_type"/>
+                                    <field name="is_optional" widget="boolean_toggle" optional="hide"/>
+                                    <field name="alternate_group" optional="hide"/>
+                                    <field name="is_primary" widget="boolean_toggle" optional="hide"/>
+                                    <field name="pg_revision_id" optional="hide"
+                                           options="{'no_create_edit': True}"/>
+                                    <field name="notes" optional="hide"/>
+                                </list>
+                            </field>
+                            <p class="text-muted mt-2">
+                                Copy/paste lines from a spreadsheet, or use the
+                                <em>Import Records</em> action above the list for CSV.
+                            </p>
+                        </page>
+                        <page string="Description" name="page_description">
+                            <field name="description"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ─── Search ──────────────────────────────────────────────────────── -->
+    <record id="view_pg_ebom_search" model="ir.ui.view">
+        <field name="name">pg.ebom.search</field>
+        <field name="model">pg.ebom</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="root_item_id"/>
+                <field name="revision_id"/>
+                <filter string="Draft" name="state_draft" domain="[('state','=','draft')]"/>
+                <filter string="Under Review" name="state_review" domain="[('state','=','review')]"/>
+                <filter string="Released" name="state_released" domain="[('state','=','released')]"/>
+                <filter string="Superseded" name="state_superseded" domain="[('state','=','superseded')]"/>
+                <separator/>
+                <filter string="Production" name="ebom_prod" domain="[('ebom_type','=','production')]"/>
+                <filter string="Prototype" name="ebom_proto" domain="[('ebom_type','=','prototype')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Root Item" name="grp_root" context="{'group_by':'root_item_id'}"/>
+                    <filter string="State" name="grp_state" context="{'group_by':'state'}"/>
+                    <filter string="EBOM Type" name="grp_type" context="{'group_by':'ebom_type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pg_ebom" model="ir.actions.act_window">
+        <field name="name">Engineering BOMs</field>
+        <field name="res_model">pg.ebom</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ─── Inherit pg.item to add Where-Used smart button ─────────────── -->
+    <record id="view_pg_item_form_inherit_ebom" model="ir.ui.view">
+        <field name="name">pg.item.form.inherit.ebom</field>
+        <field name="model">pg.item</field>
+        <field name="inherit_id" ref="product_graph_base.view_pg_item_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_where_used" type="object"
+                        class="oe_stat_button" icon="fa-search">
+                    <field name="where_used_count" widget="statinfo" string="Where Used"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ─── Inherit pg.revision form to expose ebom_ids ────────────────── -->
+    <record id="view_pg_revision_form_inherit_ebom" model="ir.ui.view">
+        <field name="name">pg.revision.form.inherit.ebom</field>
+        <field name="model">pg.revision</field>
+        <field name="inherit_id" ref="product_graph_revision.view_pg_revision_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook/page[@name='page_documents']" position="after">
+                <page string="EBOMs" name="page_eboms">
+                    <field name="ebom_ids">
+                        <list>
+                            <field name="name"/>
+                            <field name="state" widget="badge"/>
+                            <field name="ebom_type"/>
+                            <field name="line_count"/>
+                            <field name="effective_date"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

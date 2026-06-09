@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Standalone line list mostly for the REST/MCP import flow and analyst views -->
+
+    <record id="view_pg_ebom_line_list" model="ir.ui.view">
+        <field name="name">pg.ebom.line.list</field>
+        <field name="model">pg.ebom.line</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="ebom_id"/>
+                <field name="sequence" optional="hide"/>
+                <field name="pg_item_id"/>
+                <field name="part_number"/>
+                <field name="product_qty"/>
+                <field name="uom_id"/>
+                <field name="reference" optional="hide"/>
+                <field name="bom_line_type"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_pg_ebom_line" model="ir.actions.act_window">
+        <field name="name">EBOM Lines</field>
+        <field name="res_model">pg.ebom.line</field>
+        <field name="view_mode">list</field>
+    </record>
+
+</odoo>

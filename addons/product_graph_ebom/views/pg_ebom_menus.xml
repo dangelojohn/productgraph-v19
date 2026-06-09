@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_pg_ebom"
+              name="Engineering BOMs"
+              parent="product_graph_base.menu_pg_engineering"
+              action="action_pg_ebom"
+              sequence="40"/>
+
+    <menuitem id="menu_pg_ebom_closure"
+              name="Where-Used Closure"
+              parent="product_graph_base.menu_pg_analysis"
+              action="action_pg_ebom_closure"
+              sequence="20"
+              groups="product_graph_base.group_pg_engineer"/>
+
+</odoo>

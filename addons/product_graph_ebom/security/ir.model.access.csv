@@ -1,0 +1,14 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+# ─── pg.ebom ──────────────────────────────────────────────────────────────────
+access_pg_ebom_viewer,pg.ebom viewer,model_pg_ebom,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_ebom_user,pg.ebom user,model_pg_ebom,product_graph_base.group_pg_user,1,0,0,0
+access_pg_ebom_engineer,pg.ebom engineer,model_pg_ebom,product_graph_base.group_pg_engineer,1,1,1,0
+access_pg_ebom_admin,pg.ebom admin,model_pg_ebom,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.ebom.line ─────────────────────────────────────────────────────────────
+access_pg_ebom_line_viewer,pg.ebom.line viewer,model_pg_ebom_line,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_ebom_line_engineer,pg.ebom.line engineer,model_pg_ebom_line,product_graph_base.group_pg_engineer,1,1,1,1
+access_pg_ebom_line_admin,pg.ebom.line admin,model_pg_ebom_line,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.ebom.closure ──────────────────────────────────────────────────────────
+access_pg_ebom_closure_viewer,pg.ebom.closure viewer,model_pg_ebom_closure,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_ebom_closure_engineer,pg.ebom.closure engineer,model_pg_ebom_closure,product_graph_base.group_pg_engineer,1,0,1,1
+access_pg_ebom_closure_admin,pg.ebom.closure admin,model_pg_ebom_closure,product_graph_base.group_pg_admin,1,1,1,1
