@@ -160,7 +160,7 @@
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="%(action_pg_release)d" type="action"
                         class="oe_stat_button" icon="fa-paper-plane"
-                        context="{'search_default_ebom_id': active_id}">
+                        context="{'search_default_ebom_id': id}">
                     <field name="release_count" widget="statinfo" string="Releases"/>
                 </button>
             </xpath>
