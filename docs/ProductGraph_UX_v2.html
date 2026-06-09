@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ProductGraph for Odoo v19CE</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --pg:#714B67;--pg-dark:#4a3045;--pg-light:#f0eaf3;--pg-mid:#9b7da8;
+  --bg:#f4f5f8;--card:#fff;--border:#e2e5ec;--border2:#c9cdd8;
+  --text:#1a1d23;--muted:#64748b;--light:#94a3b8;
+  --green:#12a150;--green-bg:#ecfdf5;--green-border:#a7f3d0;
+  --amber:#d97706;--amber-bg:#fffbeb;--amber-border:#fcd34d;
+  --red:#dc2626;--red-bg:#fef2f2;--red-border:#fca5a5;
+  --blue:#2563eb;--blue-bg:#eff6ff;--blue-border:#bfdbfe;
+  --concept:#8b5cf6;--proto:#f59e0b;--eng:#3b82f6;--rel:#12a150;--svc:#06b6d4;--obs:#6b7280;
+  --radius:10px;--radius-sm:6px;--shadow:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+/* ── TOP BAR ── */
+.topbar{height:52px;background:var(--pg-dark);display:flex;align-items:center;padding:0 16px;gap:12px;position:fixed;top:0;left:0;right:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.brand{font-weight:800;font-size:16px;color:#fff;letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
+.brand-icon{width:28px;height:28px;background:var(--pg);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.topnav{display:flex;gap:2px;font-size:13px}
+.topnav button{background:none;border:none;color:rgba(255,255,255,.7);padding:6px 11px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;transition:.15s}
+.topnav button:hover,.topnav button.ta{background:rgba(255,255,255,.14);color:#fff}
+.topright{margin-left:auto;display:flex;align-items:center;gap:10px}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--pg-mid);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.topright-text{font-size:12px;color:rgba(255,255,255,.7)}
+/* ── LAYOUT ── */
+.layout{display:flex;padding-top:52px;min-height:100vh}
+.sidebar{width:242px;background:#fff;border-right:1px solid var(--border);position:fixed;top:52px;bottom:0;left:0;overflow-y:auto;padding:12px 8px}
+.side-section{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--light);padding:14px 10px 6px}
+.side-item{padding:8px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;display:flex;align-items:center;gap:9px;color:var(--text);transition:.12s;position:relative}
+.side-item:hover{background:#f8f6fa;color:var(--pg)}
+.side-item.active{background:var(--pg-light);color:var(--pg);font-weight:600}
+.side-icon{font-size:15px;width:18px;text-align:center;opacity:.7}
+.side-item.active .side-icon{opacity:1}
+.side-badge{margin-left:auto;background:#eef2ff;color:#3730a3;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px}
+.side-badge.warn{background:var(--amber-bg);color:var(--amber)}
+main{margin-left:242px;padding:24px;width:calc(100% - 242px)}
+/* ── PAGES ── */
+.page{display:none}.page.active{display:block}
+/* ── PAGE HEADER ── */
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px}
+.ph-title{font-size:22px;font-weight:800;letter-spacing:-.4px}
+.ph-sub{color:var(--muted);font-size:13px;margin-top:3px}
+.ph-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;margin-left:16px}
+/* ── BREADCRUMB ── */
+.breadcrumb{font-size:12px;color:var(--muted);margin-bottom:14px}
+.breadcrumb a{color:var(--pg);cursor:pointer;text-decoration:none}.breadcrumb a:hover{text-decoration:underline}
+/* ── BUTTONS ── */
+.btn{border:none;padding:8px 14px;border-radius:var(--radius-sm);cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:.12s}
+.btn-primary{background:var(--pg);color:#fff}.btn-primary:hover{background:var(--pg-dark)}
+.btn-secondary{background:#fff;color:var(--text);border:1px solid var(--border2)}.btn-secondary:hover{background:#f8f9fa}
+.btn-green{background:var(--green);color:#fff}
+.btn-amber{background:var(--amber);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-ghost{background:none;color:var(--pg);border:1px solid var(--pg)}.btn-ghost:hover{background:var(--pg-light)}
+/* ── SMART BUTTONS ── */
+.smart-btns{display:flex;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+.smart-btn{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;text-align:center;cursor:pointer;transition:.12s;min-width:90px}
+.smart-btn:hover{border-color:var(--pg);background:var(--pg-light)}
+.smart-btn-num{font-size:20px;font-weight:800;color:var(--pg)}
+.smart-btn-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+/* ── CARDS ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.card+.card{margin-top:14px}
+.card-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+/* ── GRID ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.split{display:grid;grid-template-columns:3fr 2fr;gap:14px}
+.split-r{display:grid;grid-template-columns:2fr 3fr;gap:14px}
+/* ── METRICS ── */
+.metric-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.metric-val{font-size:30px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.metric-lbl{font-size:12px;color:var(--muted);margin-top:5px}
+.metric-delta{font-size:12px;color:var(--green);font-weight:600;margin-top:4px}
+/* ── TABLE ── */
+.tbl-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse}
+th{background:#f8f9fb;color:#475467;font-weight:600;font-size:12px;text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fcfcfe}
+td.mono{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--pg-dark)}
+/* ── STATUS PILLS ── */
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700}
+.pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.6}
+.p-concept{background:#f3e8ff;color:var(--concept)}
+.p-proto{background:var(--amber-bg);color:var(--amber)}
+.p-eng{background:var(--blue-bg);color:var(--blue)}
+.p-draft{background:#f2f4f7;color:#344054}
+.p-review{background:var(--amber-bg);color:var(--amber)}
+.p-released{background:var(--green-bg);color:var(--green)}
+.p-superseded{background:#f0f9ff;color:#0369a1}
+.p-obsolete{background:var(--red-bg);color:var(--red)}
+.p-service{background:#ecfeff;color:#0e7490}
+/* ── TABS ── */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:18px;gap:2px}
+.tab{padding:9px 14px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);transition:.12s;margin-bottom:-1px}
+.tab:hover{color:var(--pg)}
+.tab.active{color:var(--pg);border-bottom-color:var(--pg);font-weight:700}
+.tab-panel{display:none}.tab-panel.active{display:block}
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-row{display:flex;flex-direction:column;gap:5px}
+.form-label{font-size:11px;font-weight:700;color:#475467;text-transform:uppercase;letter-spacing:.4px}
+.form-input{width:100%;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;background:#fff;color:var(--text);transition:.12s}
+.form-input:focus{outline:none;border-color:var(--pg);box-shadow:0 0 0 3px rgba(113,75,103,.12)}
+.form-input[disabled]{background:#f8f9fa;color:var(--muted)}
+textarea.form-input{min-height:80px;resize:vertical}
+select.form-input{cursor:pointer}
+/* ── NOTE / CALLOUT ── */
+.note{background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:#1e40af;margin:12px 0}
+.note.warn{background:var(--amber-bg);border-color:var(--amber-border);color:#92400e}
+.note.danger{background:var(--red-bg);border-color:var(--red-border);color:#991b1b}
+.note.success{background:var(--green-bg);border-color:var(--green-border);color:#065f46}
+/* ── TIMELINE / WORKFLOW ── */
+.wf{display:flex;align-items:center;gap:0;margin:12px 0 18px}
+.wf-step{padding:8px 14px;font-size:12px;font-weight:600;border:1px solid var(--border2);background:#fff;color:var(--muted);position:relative;display:flex;align-items:center;gap:6px}
+.wf-step:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
+.wf-step:last-child{border-radius:0 var(--radius-sm) var(--radius-sm) 0}
+.wf-step.done{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.wf-step.current{background:var(--pg-light);border-color:var(--pg);color:var(--pg)}
+.wf-step.done::before{content:'✓';margin-right:2px}
+.wf-step.current::before{content:'▶';font-size:10px;margin-right:2px}
+/* ── TREE ── */
+.tree-wrap{font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;background:#f8f9fb;border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;overflow-x:auto}
+.tree-node{cursor:pointer;transition:.1s}.tree-node:hover{color:var(--pg)}
+.tree-asm{color:var(--pg-dark);font-weight:600}
+.tree-buy{color:#0369a1}
+.tree-mfg{color:#065f46}
+.tree-doc{color:#92400e}
+/* ── PROGRESS BAR ── */
+.progress-wrap{background:#f1f3f7;border-radius:999px;height:8px;overflow:hidden;margin-top:6px}
+.progress-bar{height:8px;border-radius:999px;background:var(--pg);transition:.3s}
+/* ── STATE MACHINE SVG ── */
+#sm-svg{width:100%;max-width:900px;display:block;margin:0 auto}
+.sm-node{cursor:pointer;transition:.2s}
+.sm-node circle{transition:.2s;filter:drop-shadow(0 2px 4px rgba(0,0,0,.12))}
+.sm-node:hover circle{filter:drop-shadow(0 4px 8px rgba(0,0,0,.2))}
+.sm-node text{pointer-events:none;font-family:'Inter',sans-serif;font-weight:700}
+.sm-edge{stroke-dasharray:none}
+/* ── CHATTER ── */
+.chatter{margin-top:18px}
+.chatter-title{font-weight:700;font-size:14px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.chatter-item{display:flex;gap:10px;margin-bottom:14px}
+.chatter-av{width:30px;height:30px;border-radius:50%;background:var(--pg-light);color:var(--pg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.chatter-body{flex:1;background:#f8f9fb;border-radius:var(--radius-sm);padding:10px 12px;font-size:13px}
+.chatter-meta{font-size:11px;color:var(--light);margin-bottom:3px}
+.chatter-input-wrap{display:flex;gap:8px;margin-top:12px}
+.chatter-input{flex:1;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;font-family:'Inter',sans-serif}
+/* ── ARCHITECTURE STATUS ── */
+.arch-item{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}
+.arch-item:last-child{border-bottom:none}
+.arch-name{font-size:13px;font-weight:600;width:220px;flex-shrink:0}
+.arch-file{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.arch-bar-wrap{flex:1}
+.arch-pct{font-size:12px;font-weight:700;color:var(--pg);width:36px;flex-shrink:0;text-align:right}
+.arch-priority{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;flex-shrink:0}
+.arch-p1{background:var(--red-bg);color:var(--red)}
+.arch-p2{background:var(--amber-bg);color:var(--amber)}
+.arch-p3{background:var(--blue-bg);color:var(--blue)}
+/* ── GOV MATRIX ── */
+.gov-scenario{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+.gov-scenario-header{background:#f8f9fb;padding:12px 16px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.gov-scenario-body{padding:16px;display:block}
+.gov-rule{display:flex;align-items:flex-start;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.gov-rule:last-child{border-bottom:none}
+.gov-outcome{font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;flex-shrink:0;margin-top:2px}
+.gov-freeze{background:#dbeafe;color:#1e40af}
+.gov-warn{background:var(--amber-bg);color:var(--amber)}
+.gov-block{background:var(--red-bg);color:var(--red)}
+.gov-allow{background:var(--green-bg);color:var(--green)}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">⬡</div>
+    ProductGraph
+  </div>
+  <nav class="topnav">
+    <button onclick="navApp('dashboard')" id="nav-dashboard" class="ta">Dashboard</button>
+    <button onclick="navApp('engineering')" id="nav-engineering">Engineering</button>
+    <button onclick="navApp('release')" id="nav-release">Release</button>
+    <button onclick="navApp('governance')" id="nav-governance">Governance</button>
+    <button onclick="navApp('reports')" id="nav-reports">Reports</button>
+  </nav>
+  <div class="topright">
+    <div class="topright-text">Acme Manufacturing · Odoo 19 CE</div>
+    <div class="avatar">JK</div>
+  </div>
+</div>
+
+<div class="layout">
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="side-section">Overview</div>
+  <div class="side-item active" onclick="showPage('pg-dashboard',this)" id="si-dashboard">
+    <span class="side-icon">⊞</span>Dashboard
+  </div>
+  <div class="side-item" onclick="showPage('pg-arch',this)" id="si-arch">
+    <span class="side-icon">📐</span>Architecture Status
+  </div>
+
+  <div class="side-section">Engineering</div>
+  <div class="side-item" onclick="showPage('pg-items',this)" id="si-items">
+    <span class="side-icon">◈</span>Items
+    <span class="side-badge">2,841</span>
+  </div>
+  <div class="side-item" onclick="showPage('pg-revisions',this)" id="si-revisions">
+    <span class="side-icon">⎇</span>Revisions
+    <span class="side-badge warn">5 Draft</span>
+  </div>
+  <div class="side-item" onclick="showPage('pg-ebom',this)" id="si-ebom">
+    <span class="side-icon">⊞</span>Engineering BOMs
+  </div>
+  <div class="side-item" onclick="showPage('pg-whereused',this)" id="si-whereused">
+    <span class="side-icon">🔍</span>Where Used
+  </div>
+
+  <div class="side-section">Lifecycle</div>
+  <div class="side-item" onclick="showPage('pg-statemachine',this)" id="si-sm">
+    <span class="side-icon">⟳</span>State Machine
+  </div>
+  <div class="side-item" onclick="showPage('pg-release',this)" id="si-release">
+    <span class="side-icon">🚀</span>Release to MRP
+    <span class="side-badge warn">3 Pending</span>
+  </div>
+  <div class="side-item" onclick="showPage('pg-eco',this)" id="si-eco">
+    <span class="side-icon">✏️</span>ECO / ECR
+    <span class="side-badge">Future</span>
+  </div>
+
+  <div class="side-section">Governance</div>
+  <div class="side-item" onclick="showPage('pg-governance',this)" id="si-gov">
+    <span class="side-icon">⚖️</span>Mfg Governance
+  </div>
+  <div class="side-item" onclick="showPage('pg-itemform',this)" id="si-itemform">
+    <span class="side-icon">📋</span>Item Form (Demo)
+  </div>
+
+  <div class="side-section">Reports</div>
+  <div class="side-item" onclick="showPage('pg-reports',this)" id="si-reports">
+    <span class="side-icon">📊</span>Reports
+  </div>
+</nav>
+
+<main>
+
+<!-- ████ DASHBOARD ████ -->
+<section id="pg-dashboard" class="page active">
+  <div class="ph">
+    <div>
+      <div class="ph-title">ProductGraph Dashboard</div>
+      <div class="ph-sub">Engineering master data for Odoo 19 CE — 8 architecture documents in progress</div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn btn-secondary">⚙ Settings</button>
+      <button class="btn btn-primary" onclick="showPage('pg-items',document.getElementById('si-items'))">+ New Item</button>
+    </div>
+  </div>
+
+  <div class="grid4" style="margin-bottom:16px">
+    <div class="metric-card">
+      <div class="metric-val">2,841</div>
+      <div class="metric-lbl">Total Items</div>
+      <div class="metric-delta">↑ 48 this month</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val">1,204</div>
+      <div class="metric-lbl">Released Items</div>
+      <div class="metric-delta" style="color:var(--green)">✓ Production Ready</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--amber)">5</div>
+      <div class="metric-lbl">Revisions in Draft</div>
+      <div class="metric-delta" style="color:var(--amber)">⚠ Awaiting Review</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--red)">3</div>
+      <div class="metric-lbl">Pending MRP Release</div>
+      <div class="metric-delta" style="color:var(--muted)">→ Action Required</div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">📋 Recent Engineering Activity</div>
+      <table>
+        <tr><th>Item</th><th>Action</th><th>Revision</th><th>By</th><th>When</th></tr>
+        <tr><td class="mono">PG-ASM-0001</td><td>Revision Created</td><td>C</td><td>J. Kim</td><td>2 hrs ago</td></tr>
+        <tr><td class="mono">PG-BUY-0102</td><td>Released to MRP</td><td>A</td><td>A. Chen</td><td>Yesterday</td></tr>
+        <tr><td class="mono">PG-DOC-0201</td><td>Submitted for Review</td><td>3</td><td>G. Patel</td><td>Yesterday</td></tr>
+        <tr><td class="mono">PG-PRT-0048</td><td>Approved</td><td>B</td><td>A. Chen</td><td>Mon</td></tr>
+        <tr><td class="mono">PG-ASM-0099</td><td>Obsoleted</td><td>A</td><td>J. Kim</td><td>Mon</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">🏗️ EBOM Pipeline</div>
+      <div class="wf">
+        <div class="wf-step done">Concept</div>
+        <div class="wf-step done">Engineering</div>
+        <div class="wf-step done">Validate</div>
+        <div class="wf-step current">Release</div>
+        <div class="wf-step">MRP Live</div>
+      </div>
+      <table>
+        <tr><th>EBOM</th><th>Assembly</th><th>Rev</th><th>State</th></tr>
+        <tr><td class="mono">EBOM-084</td><td>Cabinet Assembly</td><td>B</td><td><span class="pill p-review">Review</span></td></tr>
+        <tr><td class="mono">EBOM-081</td><td>Drawer Box</td><td>A</td><td><span class="pill p-released">Released</span></td></tr>
+        <tr><td class="mono">EBOM-079</td><td>Door Panel</td><td>C</td><td><span class="pill p-draft">Draft</span></td></tr>
+      </table>
+      <div style="margin-top:14px">
+        <div class="note warn">⚠ 3 EBOMs awaiting release to Odoo MRP. Manufacturing cannot proceed without explicit release.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🗺️ Digital Thread — Lifecycle Overview</div>
+    <div style="display:flex;align-items:center;gap:0;overflow-x:auto;padding-bottom:4px">
+      <div style="text-align:center;min-width:110px;padding:14px 10px;border-right:1px solid var(--border)">
+        <div style="font-size:22px">🎨</div>
+        <div style="font-size:11px;font-weight:700;margin-top:6px">CAD Design</div>
+        <div style="font-size:11px;color:var(--muted)">SolidWorks / Fusion</div>
+      </div>
+      <div style="padding:0 10px;color:var(--pg-mid);font-size:18px">→</div>
+      <div style="text-align:center;min-width:110px;padding:14px 10px;border-right:1px solid var(--border);background:var(--pg-light);border-radius:var(--radius)">
+        <div style="font-size:22px">⬡</div>
+        <div style="font-size:11px;font-weight:700;margin-top:6px;color:var(--pg)">ProductGraph</div>
+        <div style="font-size:11px;color:var(--pg-mid)">EBOM · Revisions</div>
+      </div>
+      <div style="padding:0 10px;color:var(--pg-mid);font-size:18px">→</div>
+      <div style="text-align:center;min-width:110px;padding:14px 10px;border-right:1px solid var(--border)">
+        <div style="font-size:22px">🏭</div>
+        <div style="font-size:11px;font-weight:700;margin-top:6px">Odoo MRP</div>
+        <div style="font-size:11px;color:var(--muted)">mrp.bom · MO</div>
+      </div>
+      <div style="padding:0 10px;color:var(--pg-mid);font-size:18px">→</div>
+      <div style="text-align:center;min-width:110px;padding:14px 10px;border-right:1px solid var(--border)">
+        <div style="font-size:22px">📦</div>
+        <div style="font-size:11px;font-weight:700;margin-top:6px">Asset Registry</div>
+        <div style="font-size:11px;color:var(--muted)">Installed Units</div>
+      </div>
+      <div style="padding:0 10px;color:var(--pg-mid);font-size:18px">→</div>
+      <div style="text-align:center;min-width:110px;padding:14px 10px;border-right:1px solid var(--border)">
+        <div style="font-size:22px">🔧</div>
+        <div style="font-size:11px;font-weight:700;margin-top:6px">Maintenance</div>
+        <div style="font-size:11px;color:var(--muted)">Spare Parts</div>
+      </div>
+      <div style="padding:0 10px;color:var(--pg-mid);font-size:18px">→</div>
+      <div style="text-align:center;min-width:110px;padding:14px 10px">
+        <div style="font-size:22px">📡</div>
+        <div style="font-size:11px;font-weight:700;margin-top:6px">Digital Twin</div>
+        <div style="font-size:11px;color:var(--muted)">IoT · Predictive</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ████ ARCHITECTURE STATUS ████ -->
+<section id="pg-arch" class="page">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Architecture Status</div>
+      <div class="ph-sub">8 critical governance documents required before commercial-grade release — current completeness</div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn btn-secondary">Export Status</button>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--amber)">29%</div>
+      <div class="metric-lbl">Avg Architecture Completeness</div>
+      <div class="metric-delta" style="color:var(--amber)">⚠ 71% of governance knowledge lives only in conversation</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--red)">5</div>
+      <div class="metric-lbl">Critical-Priority Gaps</div>
+      <div class="metric-delta" style="color:var(--red)">Block commercial-grade release if unresolved</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📂 Architecture Document Roster</div>
+    <div class="note warn" style="margin-bottom:16px">⚠ If these eight documents are not written before coding continues, three different AI agents handed the current codebase will produce three different implementations.</div>
+
+    <div id="arch-docs"></div>
+  </div>
+</section>
+
+<!-- ████ ITEMS LIST ████ -->
+<section id="pg-items" class="page">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Engineering Items</div>
+      <div class="ph-sub">Item master — parts, assemblies, purchased components, documents, service items</div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn btn-secondary">⬇ Export</button>
+      <button class="btn btn-primary">+ New Item</button>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:14px">
+    <input class="form-input" style="max-width:280px" placeholder="🔍  Search part number or name…"/>
+    <select class="form-input" style="max-width:160px"><option>All Types</option><option>Assembly</option><option>Part</option><option>Purchased</option><option>Document</option></select>
+    <select class="form-input" style="max-width:160px"><option>All States</option><option>Concept</option><option>Engineering</option><option>Released</option><option>Obsolete</option></select>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Part Number</th><th>Name</th><th>Type</th><th>Lifecycle</th><th>Active Rev</th><th>Odoo Product</th><th>Owner</th><th></th></tr>
+      <tr onclick="showPage('pg-itemform',document.getElementById('si-itemform'))" style="cursor:pointer">
+        <td class="mono">PG-ASM-0001</td><td><strong>Base Cabinet Assembly</strong></td><td>Assembly</td>
+        <td><span class="pill p-released">Released</span></td><td>Rev B</td><td>✓ Linked</td><td>J. Kim</td>
+        <td><button class="btn btn-secondary" style="padding:4px 10px;font-size:11px">Open</button></td>
+      </tr>
+      <tr>
+        <td class="mono">PG-PRT-0048</td><td>Left Side Panel</td><td>Manufactured</td>
+        <td><span class="pill p-released">Released</span></td><td>Rev A</td><td>✓ Linked</td><td>A. Chen</td>
+        <td><button class="btn btn-secondary" style="padding:4px 10px;font-size:11px">Open</button></td>
+      </tr>
+      <tr>
+        <td class="mono">PG-BUY-0102</td><td>Soft Close Hinge 35mm</td><td>Purchased</td>
+        <td><span class="pill p-released">Released</span></td><td>Rev A</td><td>✓ Linked</td><td>A. Chen</td>
+        <td><button class="btn btn-secondary" style="padding:4px 10px;font-size:11px">Open</button></td>
+      </tr>
+      <tr>
+        <td class="mono">PG-DOC-0201</td><td>Assembly Drawing PDF</td><td>Document</td>
+        <td><span class="pill p-review">Review</span></td><td>Rev 3</td><td>— None</td><td>G. Patel</td>
+        <td><button class="btn btn-secondary" style="padding:4px 10px;font-size:11px">Open</button></td>
+      </tr>
+      <tr>
+        <td class="mono">PG-ASM-0099</td><td>Legacy Door Assembly</td><td>Assembly</td>
+        <td><span class="pill p-obsolete">Obsolete</span></td><td>Rev A</td><td>✓ Linked</td><td>J. Kim</td>
+        <td><button class="btn btn-secondary" style="padding:4px 10px;font-size:11px">Open</button></td>
+      </tr>
+      <tr>
+        <td class="mono">PG-PRT-0201</td><td>Top Rail Bracket</td><td>Manufactured</td>
+        <td><span class="pill p-eng">Engineering</span></td><td>Rev A (Draft)</td><td>— Not Released</td><td>G. Patel</td>
+        <td><button class="btn btn-secondary" style="padding:4px 10px;font-size:11px">Open</button></td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ████ ITEM FORM ████ -->
+<section id="pg-itemform" class="page">
+  <div class="breadcrumb"><a onclick="showPage('pg-items',document.getElementById('si-items'))">Items</a> / PG-ASM-0001</div>
+
+  <div class="ph">
+    <div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="ph-title">Base Cabinet Assembly</div>
+        <span class="pill p-released">Released</span>
+      </div>
+      <div class="ph-sub">PG-ASM-0001 · Assembly · Current Revision: <strong>B</strong></div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn btn-secondary">Where Used</button>
+      <button class="btn btn-secondary">Create Revision</button>
+      <button class="btn btn-amber">Submit for Review</button>
+    </div>
+  </div>
+
+  <!-- Smart Buttons -->
+  <div class="smart-btns">
+    <div class="smart-btn">
+      <div class="smart-btn-num">3</div>
+      <div class="smart-btn-lbl">Revisions</div>
+    </div>
+    <div class="smart-btn">
+      <div class="smart-btn-num">1</div>
+      <div class="smart-btn-lbl">Active EBOM</div>
+    </div>
+    <div class="smart-btn">
+      <div class="smart-btn-num">2</div>
+      <div class="smart-btn-lbl">MRP BOMs</div>
+    </div>
+    <div class="smart-btn">
+      <div class="smart-btn-num">4</div>
+      <div class="smart-btn-lbl">Documents</div>
+    </div>
+    <div class="smart-btn">
+      <div class="smart-btn-num">12</div>
+      <div class="smart-btn-lbl">MO History</div>
+    </div>
+    <div class="smart-btn">
+      <div class="smart-btn-num">3</div>
+      <div class="smart-btn-lbl">Suppliers</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" id="item-tabs">
+      <div class="tab active" onclick="switchTab('item',0,this)">General</div>
+      <div class="tab" onclick="switchTab('item',1,this)">Revisions</div>
+      <div class="tab" onclick="switchTab('item',2,this)">EBOM Usage</div>
+      <div class="tab" onclick="switchTab('item',3,this)">Manufacturing</div>
+      <div class="tab" onclick="switchTab('item',4,this)">Documents</div>
+      <div class="tab" onclick="switchTab('item',5,this)">Audit History</div>
+    </div>
+
+    <!-- Tab 0: General -->
+    <div class="tab-panel active" id="item-tp-0">
+      <div class="form-grid">
+        <div class="form-row"><span class="form-label">Part Number</span><input class="form-input" value="PG-ASM-0001" disabled/></div>
+        <div class="form-row"><span class="form-label">Lifecycle State</span><input class="form-input" value="Released" disabled/></div>
+        <div class="form-row"><span class="form-label">Name</span><input class="form-input" value="Base Cabinet Assembly"/></div>
+        <div class="form-row"><span class="form-label">Item Type</span><select class="form-input"><option>Assembly</option><option>Part</option><option>Purchased</option><option>Document</option></select></div>
+        <div class="form-row"><span class="form-label">Unit of Measure</span><input class="form-input" value="Units"/></div>
+        <div class="form-row"><span class="form-label">Odoo Product Template</span><input class="form-input" value="Base Cabinet Assembly (product.template #441)"/></div>
+        <div class="form-row" style="grid-column:1/-1"><span class="form-label">Description</span><textarea class="form-input">Primary base cabinet assembly for standard kitchen cabinet line. Used across product families 100, 200, and 300 series.</textarea></div>
+        <div class="form-row" style="grid-column:1/-1"><span class="form-label">Engineering Notes</span><textarea class="form-input">Released engineering authority. Any modification requires a new revision via Create Revision or an approved ECO. Direct edits to Released items are blocked by system policy.</textarea></div>
+      </div>
+      <div class="note success" style="margin-top:14px">✓ This item is Released. It is linked to Odoo product.template #441 and mrp.bom #89 (Rev B). All downstream manufacturing orders reference this item.</div>
+    </div>
+
+    <!-- Tab 1: Revisions -->
+    <div class="tab-panel" id="item-tp-1">
+      <table>
+        <tr><th>Revision</th><th>State</th><th>Effective Date</th><th>Approved By</th><th>Superseded By</th><th>Change Summary</th></tr>
+        <tr><td><strong>B</strong> <span style="font-size:11px;color:var(--green)">(Current)</span></td><td><span class="pill p-released">Released</span></td><td>2026-06-08</td><td>A. Chen</td><td>—</td><td>Updated hinge qty from 2→4, revised tolerances on left panel.</td></tr>
+        <tr><td>A</td><td><span class="pill p-superseded">Superseded</span></td><td>2025-11-14</td><td>A. Chen</td><td>Rev B</td><td>Initial production release.</td></tr>
+        <tr><td>A (Draft)</td><td><span class="pill p-obsolete">Obsolete</span></td><td>—</td><td>—</td><td>—</td><td>Pre-release working draft.</td></tr>
+      </table>
+      <div style="margin-top:12px">
+        <button class="btn btn-ghost">+ Create New Revision (C)</button>
+      </div>
+    </div>
+
+    <!-- Tab 2: EBOM Usage -->
+    <div class="tab-panel" id="item-tp-2">
+      <div class="note">This item is the <strong>root assembly</strong> in 1 active EBOM and appears as a child in 0 parent assemblies.</div>
+      <br/>
+      <table>
+        <tr><th>EBOM ID</th><th>Role</th><th>Parent Assembly</th><th>Qty</th><th>Rev Used</th><th>EBOM State</th></tr>
+        <tr><td class="mono">EBOM-00084</td><td>Root Assembly</td><td>— (Top Level)</td><td>1</td><td>B</td><td><span class="pill p-review">Review</span></td></tr>
+      </table>
+    </div>
+
+    <!-- Tab 3: Manufacturing -->
+    <div class="tab-panel" id="item-tp-3">
+      <div class="note warn">⚠ ProductGraph owns the Engineering BOM. Odoo MRP owns manufacturing execution. Changes here propagate only after an explicit Release action.</div>
+      <br/>
+      <table>
+        <tr><th>MRP BOM ID</th><th>Odoo Revision</th><th>Release Date</th><th>Open MOs</th><th>Status</th></tr>
+        <tr><td class="mono">mrp.bom #89</td><td>Rev B</td><td>2026-06-08</td><td>4</td><td><span class="pill p-released">Active</span></td></tr>
+        <tr><td class="mono">mrp.bom #71</td><td>Rev A</td><td>2025-11-14</td><td>0</td><td><span class="pill p-superseded">Superseded</span></td></tr>
+      </table>
+      <div class="note" style="margin-top:14px">🔒 4 open Manufacturing Orders reference mrp.bom #89 (Rev B). Per governance policy, these MOs are frozen at Rev B. Future revision C will generate mrp.bom #90 upon release.</div>
+    </div>
+
+    <!-- Tab 4: Documents -->
+    <div class="tab-panel" id="item-tp-4">
+      <table>
+        <tr><th>Document</th><th>Type</th><th>Revision</th><th>Size</th><th>Uploaded By</th><th>Date</th><th></th></tr>
+        <tr><td>Assembly Drawing</td><td>PDF</td><td>Rev B</td><td>2.4 MB</td><td>J. Kim</td><td>2026-06-08</td><td><button class="btn btn-secondary" style="padding:3px 8px;font-size:11px">⬇</button></td></tr>
+        <tr><td>3D Model</td><td>STEP</td><td>Rev B</td><td>14.1 MB</td><td>J. Kim</td><td>2026-06-08</td><td><button class="btn btn-secondary" style="padding:3px 8px;font-size:11px">⬇</button></td></tr>
+        <tr><td>Material Spec</td><td>PDF</td><td>Rev A</td><td>340 KB</td><td>G. Patel</td><td>2025-11-14</td><td><button class="btn btn-secondary" style="padding:3px 8px;font-size:11px">⬇</button></td></tr>
+      </table>
+      <div style="margin-top:12px"><button class="btn btn-ghost">+ Attach Document</button></div>
+    </div>
+
+    <!-- Tab 5: Audit History -->
+    <div class="tab-panel" id="item-tp-5">
+      <table>
+        <tr><th>Timestamp</th><th>Action</th><th>Field / Object</th><th>Old Value</th><th>New Value</th><th>User</th></tr>
+        <tr><td>2026-06-08 09:14</td><td>Released</td><td>Revision B → Released</td><td>Review</td><td>Released</td><td>A. Chen</td></tr>
+        <tr><td>2026-06-07 16:32</td><td>Submitted</td><td>Revision B → Review</td><td>Draft</td><td>Review</td><td>J. Kim</td></tr>
+        <tr><td>2026-06-05 11:00</td><td>Edited</td><td>Hinge Qty</td><td>2</td><td>4</td><td>J. Kim</td></tr>
+        <tr><td>2025-11-14 08:44</td><td>Released</td><td>Revision A → Released</td><td>Review</td><td>Released</td><td>A. Chen</td></tr>
+      </table>
+      <div class="note success" style="margin-top:12px">🔒 Audit log is immutable. No records can be deleted or altered. Every release is permanently recorded.</div>
+    </div>
+  </div>
+
+  <!-- Chatter -->
+  <div class="chatter">
+    <div class="chatter-title">💬 Discussion &amp; Activity</div>
+    <div class="chatter-item">
+      <div class="chatter-av">AC</div>
+      <div class="chatter-body">
+        <div class="chatter-meta">A. Chen · Approver · 2026-06-08 09:14</div>
+        Approved and released Rev B. Hinge quantity change verified against BOM validation — all line items confirmed. mrp.bom #89 generated automatically.
+      </div>
+    </div>
+    <div class="chatter-item">
+      <div class="chatter-av">JK</div>
+      <div class="chatter-body">
+        <div class="chatter-meta">J. Kim · Engineer · 2026-06-07 16:32</div>
+        Submitted Rev B for review. Key change: hinge qty updated from 2 to 4 per assembly per field feedback from production run #PR-2245.
+      </div>
+    </div>
+    <div class="chatter-input-wrap">
+      <input class="chatter-input" placeholder="Add a note or @mention a colleague…"/>
+      <button class="btn btn-primary">Post</button>
+    </div>
+  </div>
+</section>
+
+<!-- ████ REVISIONS ████ -->
+<section id="pg-revisions" class="page">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Revision Control</div>
+      <div class="ph-sub">Formal engineering revision lifecycle — immutable after release</div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn btn-primary">+ New Revision</button>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>Item</th><th>Name</th><th>Revision</th><th>State</th><th>Effective Date</th><th>Approved By</th><th>Linked MRP BOM</th></tr>
+      <tr><td class="mono">PG-ASM-0001</td><td>Base Cabinet Assembly</td><td>B</td><td><span class="pill p-released">Released</span></td><td>2026-06-08</td><td>A. Chen</td><td class="mono">mrp.bom #89</td></tr>
+      <tr><td class="mono">PG-PRT-0048</td><td>Left Side Panel</td><td>A</td><td><span class="pill p-released">Released</span></td><td>2026-05-21</td><td>A. Chen</td><td class="mono">mrp.bom #81</td></tr>
+      <tr><td class="mono">PG-DOC-0201</td><td>Assembly Drawing PDF</td><td>3</td><td><span class="pill p-review">Review</span></td><td>—</td><td>—</td><td>— None</td></tr>
+      <tr><td class="mono">PG-PRT-0201</td><td>Top Rail Bracket</td><td>A</td><td><span class="pill p-draft">Draft</span></td><td>—</td><td>—</td><td>— Not Released</td></tr>
+      <tr><td class="mono">PG-BUY-0102</td><td>Soft Close Hinge</td><td>B</td><td><span class="pill p-draft">Draft</span></td><td>—</td><td>—</td><td>— Not Released</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ████ EBOM ████ -->
+<section id="pg-ebom" class="page">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Engineering BOM: EBOM-00084</div>
+      <div class="ph-sub">Root: Base Cabinet Assembly · Revision B · State: <span class="pill p-review">Review</span></div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn btn-secondary">Validate EBOM</button>
+      <button class="btn btn-green">Release to MRP →</button>
+    </div>
+  </div>
+
+  <div class="split">
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">BOM Lines</div>
+        <div class="tbl-wrap">
+          <table>
+            <tr><th>Seq</th><th>Child Item</th><th>Type</th><th>Qty</th><th>UOM</th><th>Opt</th><th>Alt Group</th></tr>
+            <tr><td>10</td><td class="mono">PG-PRT-0048</td><td>Manufactured</td><td>1</td><td>Unit</td><td>No</td><td>—</td></tr>
+            <tr><td>20</td><td class="mono">PG-PRT-0049</td><td>Manufactured</td><td>1</td><td>Unit</td><td>No</td><td>—</td></tr>
+            <tr><td>30</td><td class="mono">PG-PRT-0050</td><td>Manufactured</td><td>1</td><td>Unit</td><td>No</td><td>—</td></tr>
+            <tr><td>40</td><td class="mono">PG-BUY-0102</td><td>Purchased</td><td>4</td><td>Unit</td><td>No</td><td>HINGE-A</td></tr>
+            <tr><td>50</td><td class="mono">PG-BUY-0188</td><td>Purchased</td><td>1</td><td>Each</td><td>Yes</td><td>—</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="note warn">⚠ Line 40 (Hinge) has an alternate group HINGE-A. Validate alternates are approved before release.</div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title">🌲 Indented Structure</div>
+        <div class="tree-wrap" id="ebom-tree">
+<span class="tree-node tree-asm" onclick="toggleNode(this)">▼ Base Cabinet Assembly Rev B</span>
+  <div style="padding-left:16px">
+    <div class="tree-node tree-mfg">├─ Left Side Panel ×1</div>
+    <div class="tree-node tree-mfg">├─ Right Side Panel ×1</div>
+    <div class="tree-node tree-mfg">├─ Bottom Panel ×1</div>
+    <div class="tree-node tree-buy">├─ Soft Close Hinge ×4  <span style="color:var(--amber);font-size:10px">[ALT: HINGE-A]</span></div>
+    <div class="tree-node tree-doc">└─ Cam Lock Nut ×1  <span style="color:var(--muted);font-size:10px">[Optional]</span></div>
+  </div>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--muted)">
+          <span style="color:var(--pg-dark);font-weight:700">■</span> Assembly &nbsp;
+          <span style="color:#065f46;font-weight:700">■</span> Manufactured &nbsp;
+          <span style="color:#0369a1;font-weight:700">■</span> Purchased &nbsp;
+          <span style="color:#92400e;font-weight:700">■</span> Document
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ████ WHERE USED ████ -->
+<section id="pg-whereused" class="page">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Where Used Analysis</div>
+      <div class="ph-sub">Full impact analysis before changing any item or revision</div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn btn-secondary">Export PDF Report</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="form-row" style="max-width:420px">
+      <span class="form-label">Selected Item</span>
+      <input class="form-input" value="PG-BUY-0102 · Soft Close Hinge 35mm · Rev A"/>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <div class="card-title">📋 Used In (Direct Parents)</div>
+        <table>
+          <tr><th>EBOM</th><th>Parent Assembly</th><th>Rev</th><th>State</th><th>Qty</th><th>MRP Link</th></tr>
+          <tr><td class="mono">EBOM-00084</td><td>Base Cabinet Assembly</td><td>B</td><td><span class="pill p-review">Review</span></td><td>4</td><td>Not Released</td></tr>
+          <tr><td class="mono">EBOM-00051</td><td>Tall Pantry Assembly</td><td>A</td><td><span class="pill p-released">Released</span></td><td>2</td><td class="mono">mrp.bom #41</td></tr>
+          <tr><td class="mono">EBOM-00039</td><td>Corner Unit Assembly</td><td>C</td><td><span class="pill p-released">Released</span></td><td>4</td><td class="mono">mrp.bom #38</td></tr>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">⚠ Change Impact Summary</div>
+        <div class="note danger">Changing this item or its revision will affect <strong>3 parent assemblies</strong>, <strong>2 active MRP BOMs</strong>, and an unknown number of open Manufacturing Orders. Run impact analysis before proceeding.</div>
+        <div style="margin-top:14px">
+          <div style="font-size:13px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Parent EBOMs affected</span><strong>3</strong></div>
+          <div style="font-size:13px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>Released MRP BOMs</span><strong>2</strong></div>
+          <div style="font-size:13px;display:flex;justify-content:space-between;padding:6px 0"><span>Open Manufacturing Orders</span><strong>Checking…</strong></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn btn-amber">Create ECO</button>
+          <button class="btn btn-secondary">View MOs</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ████ STATE MACHINE ████ -->
+<section id="pg-statemachine" class="page">
+  <div class="ph">
+    <div>
+      <div class="ph-title">State Machine Bible</div>
+      <div class="ph-sub">Document: 020_State_Machine_Bible.md — Completeness: 25% → Target: 100%</div>
+    </div>
+    <div class="ph-actions">
+      <span class="pill p-review">Priority 1 — Critical</span>
+    </div>
+  </div>
+
+  <div class="tabs" id="sm-tabs">
+    <div class="tab active" onclick="switchTab('sm',0,this)">Item Lifecycle</div>
+    <div class="tab" onclick="switchTab('sm',1,this)">Revision Lifecycle</div>
+    <div class="tab" onclick="switchTab('sm',2,this)">Transition Rules</div>
+  </div>
+
+  <!-- Tab 0: Item Lifecycle -->
+  <div class="tab-panel active" id="sm-tp-0">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">pg.item State Machine</div>
+      <svg id="sm-svg" viewBox="0 0 860 280" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/></marker>
+          <marker id="arr-green" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#12a150"/></marker>
+        </defs>
+        <!-- Edges -->
+        <line x1="122" y1="140" x2="192" y2="140" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="282" y1="140" x2="352" y2="140" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="442" y1="140" x2="512" y2="140" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="602" y1="140" x2="672" y2="140" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="762" y1="140" x2="812" y2="140" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arr)"/>
+        <!-- Concept→Prototype arc label -->
+        <text x="155" y="132" font-size="9" fill="#64748b" text-anchor="middle" font-family="Inter">Create</text>
+        <text x="315" y="132" font-size="9" fill="#64748b" text-anchor="middle" font-family="Inter">Design</text>
+        <text x="475" y="132" font-size="9" fill="#64748b" text-anchor="middle" font-family="Inter">Approve</text>
+        <text x="635" y="132" font-size="9" fill="#64748b" text-anchor="middle" font-family="Inter">Field</text>
+        <text x="787" y="132" font-size="9" fill="#dc2626" text-anchor="middle" font-family="Inter">Retire</text>
+        <!-- Nodes -->
+        <g class="sm-node" onclick="selectState('concept')">
+          <circle cx="62" cy="140" r="50" fill="#f3e8ff" stroke="#8b5cf6" stroke-width="2"/>
+          <text x="62" y="135" text-anchor="middle" font-size="12" fill="#6d28d9" font-weight="700">Concept</text>
+          <text x="62" y="151" text-anchor="middle" font-size="9" fill="#8b5cf6">Idea Stage</text>
+        </g>
+        <g class="sm-node" onclick="selectState('prototype')">
+          <circle cx="237" cy="140" r="50" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+          <text x="237" y="135" text-anchor="middle" font-size="12" fill="#92400e" font-weight="700">Prototype</text>
+          <text x="237" y="151" text-anchor="middle" font-size="9" fill="#d97706">Experimental</text>
+        </g>
+        <g class="sm-node" onclick="selectState('engineering')">
+          <circle cx="397" cy="140" r="50" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+          <text x="397" y="135" text-anchor="middle" font-size="12" fill="#1e40af" font-weight="700">Engineering</text>
+          <text x="397" y="151" text-anchor="middle" font-size="9" fill="#3b82f6">Active Design</text>
+        </g>
+        <g class="sm-node" onclick="selectState('released')">
+          <circle cx="557" cy="140" r="50" fill="#ecfdf5" stroke="#12a150" stroke-width="2.5"/>
+          <text x="557" y="135" text-anchor="middle" font-size="12" fill="#065f46" font-weight="700">Released</text>
+          <text x="557" y="151" text-anchor="middle" font-size="9" fill="#12a150">Production</text>
+        </g>
+        <g class="sm-node" onclick="selectState('service')">
+          <circle cx="717" cy="140" r="50" fill="#ecfeff" stroke="#06b6d4" stroke-width="2"/>
+          <text x="717" y="135" text-anchor="middle" font-size="12" fill="#0e7490" font-weight="700">Service</text>
+          <text x="717" y="151" text-anchor="middle" font-size="9" fill="#06b6d4">Support Only</text>
+        </g>
+        <g class="sm-node" onclick="selectState('obsolete')">
+          <circle cx="840" cy="140" r="44" fill="#f9fafb" stroke="#6b7280" stroke-width="2" stroke-dasharray="5,3"/>
+          <text x="840" y="135" text-anchor="middle" font-size="12" fill="#374151" font-weight="700">Obsolete</text>
+          <text x="840" y="151" text-anchor="middle" font-size="9" fill="#6b7280">Retired</text>
+        </g>
+      </svg>
+    </div>
+
+    <div id="state-detail" class="card">
+      <div class="card-title">← Click a state node above to see its rules</div>
+      <div class="note">Each state controls what actions are permitted. Released items are immutable — direct modification is blocked at the ORM level.</div>
+    </div>
+  </div>
+
+  <!-- Tab 1: Revision Lifecycle -->
+  <div class="tab-panel" id="sm-tp-1">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">pg.revision State Machine</div>
+      <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:700px;display:block;margin:0 auto">
+        <defs>
+          <marker id="arr2" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/></marker>
+        </defs>
+        <line x1="95" y1="100" x2="165" y2="100" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <line x1="255" y1="100" x2="325" y2="100" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <line x1="415" y1="100" x2="485" y2="100" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <line x1="575" y1="100" x2="630" y2="100" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <text x="130" y="90" font-size="9" fill="#64748b" text-anchor="middle" font-family="Inter">Submit</text>
+        <text x="290" y="90" font-size="9" fill="#64748b" text-anchor="middle" font-family="Inter">Approve</text>
+        <text x="450" y="90" font-size="9" fill="#64748b" text-anchor="middle" font-family="Inter">Supersede</text>
+        <text x="605" y="90" font-size="9" fill="#64748b" text-anchor="middle" font-family="Inter">Age Out</text>
+        <g><rect x="10" y="70" width="80" height="60" rx="10" fill="#f2f4f7" stroke="#94a3b8" stroke-width="2"/>
+          <text x="50" y="98" text-anchor="middle" font-size="12" fill="#344054" font-weight="700" font-family="Inter">Draft</text>
+          <text x="50" y="112" text-anchor="middle" font-size="9" fill="#667085" font-family="Inter">Engineer</text></g>
+        <g><rect x="170" y="70" width="80" height="60" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+          <text x="210" y="98" text-anchor="middle" font-size="12" fill="#92400e" font-weight="700" font-family="Inter">Review</text>
+          <text x="210" y="112" text-anchor="middle" font-size="9" fill="#d97706" font-family="Inter">Approver</text></g>
+        <g><rect x="330" y="70" width="80" height="60" rx="10" fill="#ecfdf5" stroke="#12a150" stroke-width="2.5"/>
+          <text x="370" y="98" text-anchor="middle" font-size="12" fill="#065f46" font-weight="700" font-family="Inter">Released</text>
+          <text x="370" y="112" text-anchor="middle" font-size="9" fill="#12a150" font-family="Inter">🔒 Locked</text></g>
+        <g><rect x="490" y="70" width="88" height="60" rx="10" fill="#f0f9ff" stroke="#0369a1" stroke-width="2"/>
+          <text x="534" y="98" text-anchor="middle" font-size="12" fill="#1e40af" font-weight="700" font-family="Inter">Superseded</text>
+          <text x="534" y="112" text-anchor="middle" font-size="9" fill="#0369a1" font-family="Inter">Historic</text></g>
+        <g><rect x="635" y="70" width="55" height="60" rx="10" fill="#f9fafb" stroke="#6b7280" stroke-width="2" stroke-dasharray="4,2"/>
+          <text x="662" y="98" text-anchor="middle" font-size="12" fill="#374151" font-weight="700" font-family="Inter">Obs.</text>
+          <text x="662" y="112" text-anchor="middle" font-size="9" fill="#6b7280" font-family="Inter">Retired</text></g>
+      </svg>
+    </div>
+    <div class="note success">🔒 <strong>Critical rule:</strong> Once a revision reaches <em>Released</em> state, it is permanently immutable. The system blocks any direct field edit at the ORM level (write method override). A new revision letter must be created for any change.</div>
+  </div>
+
+  <!-- Tab 2: Transition Rules -->
+  <div class="tab-panel" id="sm-tp-2">
+    <div class="card">
+      <div class="card-title">Transition Authority Matrix</div>
+      <table>
+        <tr><th>From</th><th>To</th><th>Required Role</th><th>Required Validation</th><th>Notifications</th></tr>
+        <tr><td><span class="pill p-draft">Draft</span></td><td><span class="pill p-review">Review</span></td><td>PG Engineer</td><td>All required fields complete; linked item exists</td><td>All Approvers</td></tr>
+        <tr><td><span class="pill p-review">Review</span></td><td><span class="pill p-released">Released</span></td><td>PG Approver</td><td>EBOM validated; no open Alternates unresolved</td><td>Engineer, Manufacturing</td></tr>
+        <tr><td><span class="pill p-review">Review</span></td><td><span class="pill p-draft">Draft</span></td><td>PG Approver</td><td>Rejection reason required</td><td>Engineer, Manager</td></tr>
+        <tr><td><span class="pill p-released">Released</span></td><td><span class="pill p-superseded">Superseded</span></td><td>PG Approver</td><td>Successor revision must be Released first</td><td>Manufacturing, Procurement</td></tr>
+        <tr><td><span class="pill p-superseded">Superseded</span></td><td><span class="pill p-obsolete">Obsolete</span></td><td>PG Admin</td><td>No open MOs referencing this revision</td><td>Admin Log</td></tr>
+      </table>
+    </div>
+    <div class="note warn" style="margin-top:14px">⚠ Every transition must write an immutable audit record: timestamp, actor, previous state, new state, validation results. This is the legal and quality record for ISO/AS9100 compliance.</div>
+  </div>
+</section>
+
+<!-- ████ RELEASE TO MRP ████ -->
+<section id="pg-release" class="page">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Release to Odoo MRP</div>
+      <div class="ph-sub">Controlled, auditable conversion of Engineering BOM into native Odoo mrp.bom</div>
+    </div>
+    <div class="ph-actions">
+      <span class="pill p-review">3 Pending</span>
+      <button class="btn btn-green">Execute Release</button>
+    </div>
+  </div>
+
+  <div class="note danger" style="margin-bottom:16px">🚨 <strong>MO Collision Policy (Draft — 021_Odoo_Compatibility_Matrix):</strong> If open Manufacturing Orders reference the current MRP BOM, those MOs are <em>frozen at the existing revision</em>. New MOs created after release will reference the new MRP BOM. This rule must be formalized in 026_Manufacturing_Governance.md before production deployment.</div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title">Release Workflow — EBOM-00084</div>
+    <div class="wf">
+      <div class="wf-step done">Validate EBOM</div>
+      <div class="wf-step done">Check Revisions</div>
+      <div class="wf-step done">Check Products</div>
+      <div class="wf-step current">Create MRP BOM</div>
+      <div class="wf-step">Lock Release</div>
+      <div class="wf-step">Notify MFG</div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><span class="form-label">Source EBOM</span><input class="form-input" value="EBOM-00084" disabled/></div>
+      <div class="form-row"><span class="form-label">Root Item</span><input class="form-input" value="Base Cabinet Assembly" disabled/></div>
+      <div class="form-row"><span class="form-label">Source Revision</span><input class="form-input" value="B" disabled/></div>
+      <div class="form-row"><span class="form-label">Generated MRP BOM</span><input class="form-input" value="⏳ Pending generation…" disabled/></div>
+      <div class="form-row"><span class="form-label">Release Reason</span><input class="form-input" placeholder="e.g. 'Production build PR-2250'"/></div>
+      <div class="form-row"><span class="form-label">Effective Date</span><input class="form-input" type="date" value="2026-06-08"/></div>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="card">
+      <div class="card-title">Pre-Release Checklist</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px"><span style="color:var(--green);font-size:16px">✓</span>All EBOM lines reference Released items</div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px"><span style="color:var(--green);font-size:16px">✓</span>All items have Odoo product.template linked</div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px"><span style="color:var(--green);font-size:16px">✓</span>Revision B is in Released state</div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px"><span style="color:var(--amber);font-size:16px">⚠</span>Alternate group HINGE-A: 1 unresolved alternate</div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px"><span style="color:var(--amber);font-size:16px">⚠</span>4 open MOs will be frozen at current Rev A BOM</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">What Release Creates in Odoo</div>
+      <div style="font-size:13px;display:flex;flex-direction:column;gap:8px">
+        <div style="padding:8px;background:#f8f9fb;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px">mrp.bom (new) ← EBOM-00084 Rev B</div>
+        <div style="padding:8px;background:#f8f9fb;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px">mrp.bom.line × 5 entries</div>
+        <div style="padding:8px;background:#f8f9fb;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px">pg.release.log (immutable audit)</div>
+        <div style="padding:8px;background:#f8f9fb;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px">pg.revision.state → Released</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ████ ECO ████ -->
+<section id="pg-eco" class="page">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Engineering Change Orders</div>
+      <div class="ph-sub">ECO / ECR — Phase 2 feature. Workflow scaffolding shown below.</div>
+    </div>
+    <div class="ph-actions">
+      <span class="pill p-proto">Phase 2</span>
+      <button class="btn btn-secondary">+ Draft ECO</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title">ECO Lifecycle</div>
+    <div class="wf">
+      <div class="wf-step">Draft</div>
+      <div class="wf-step">Impact Analysis</div>
+      <div class="wf-step">Approval</div>
+      <div class="wf-step">Implementation</div>
+      <div class="wf-step">Released</div>
+    </div>
+    <div class="note">ECOs govern changes to Released items without requiring a full manual revision cycle. The ECO captures: change reason, affected items, affected EBOMs, affected MOs, approval chain, and implementation verification.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Model: pg.eco — Key Fields (Planned)</div>
+    <div class="form-grid">
+      <div class="form-row"><span class="form-label">ECO Number</span><input class="form-input" value="ECO-0001 (Auto)" disabled/></div>
+      <div class="form-row"><span class="form-label">State</span><select class="form-input"><option>Draft</option><option>Impact Analysis</option><option>Approval</option></select></div>
+      <div class="form-row"><span class="form-label">Affected Item</span><input class="form-input" placeholder="Link to pg.item…"/></div>
+      <div class="form-row"><span class="form-label">Change Type</span><select class="form-input"><option>Engineering Change</option><option>Document Update</option><option>Supplier Change</option></select></div>
+      <div class="form-row" style="grid-column:1/-1"><span class="form-label">Change Reason</span><textarea class="form-input" placeholder="Describe the engineering driver for this change…"></textarea></div>
+    </div>
+  </div>
+</section>
+
+<!-- ████ MANUFACTURING GOVERNANCE ████ -->
+<section id="pg-governance" class="page">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Manufacturing Governance</div>
+      <div class="ph-sub">Document: 026_Manufacturing_Governance.md — Priority 7 · Completeness: 10% → Target: 100%</div>
+    </div>
+    <div class="ph-actions">
+      <span class="pill p-review">Critical — Unresolved</span>
+    </div>
+  </div>
+
+  <div class="note danger" style="margin-bottom:16px">🚨 These rules have not been formally decided. Without this document, AI coding agents will implement conflicting behavior for the most operationally dangerous scenarios in the system. <strong>Decide before writing any Release or MO-linked code.</strong></div>
+
+  <div class="gov-scenario">
+    <div class="gov-scenario-header">📋 Scenario 1: Revision Released — Open Manufacturing Order Exists</div>
+    <div class="gov-scenario-body">
+      <div class="note warn" style="margin-bottom:12px">New Revision B is released while 4 MOs reference the existing mrp.bom (Rev A). What happens to those open MOs?</div>
+      <div class="gov-rule"><span class="gov-outcome gov-freeze">FREEZE</span><div><strong>Recommended:</strong> Existing open MOs remain pinned to mrp.bom Rev A. The MO is not automatically updated. Manufacturing runs to completion against the original BOM they were created with.</div></div>
+      <div class="gov-rule"><span class="gov-outcome gov-warn">WARN</span><div>All stakeholders (Manufacturing Engineer, Production Planner) receive a notification: "New BOM revision available — existing MOs continue on Rev A."</div></div>
+      <div class="gov-rule"><span class="gov-outcome gov-allow">ALLOW</span><div>New MOs created after release date automatically reference the new mrp.bom (Rev B).</div></div>
+    </div>
+  </div>
+
+  <div class="gov-scenario">
+    <div class="gov-scenario-header">🛒 Scenario 2: Revision Changes — Open Purchase Order Exists</div>
+    <div class="gov-scenario-body">
+      <div class="note warn" style="margin-bottom:12px">A purchased component revision changes from A→B while an open PO references Rev A. What behavior is required?</div>
+      <div class="gov-rule"><span class="gov-outcome gov-warn">WARN</span><div><strong>Recommended:</strong> Procurement receives a warning notification. The PO is NOT automatically updated — procurement manually decides whether to amend the PO or allow receipt against Rev A stock.</div></div>
+      <div class="gov-rule"><span class="gov-outcome gov-block">BLOCK</span><div>Alternative: Block new PO creation for Rev A after Rev B release. Force procurement to explicitly choose Rev B on any new purchase.</div></div>
+    </div>
+  </div>
+
+  <div class="gov-scenario">
+    <div class="gov-scenario-header">📦 Scenario 3: Revision Changes — Existing Inventory in Stock</div>
+    <div class="gov-scenario-body">
+      <div class="note warn" style="margin-bottom:12px">100 units of Part Rev A sit in inventory. Rev B is released. Can Rev A stock be consumed in production?</div>
+      <div class="gov-rule"><span class="gov-outcome gov-allow">ALLOW</span><div><strong>Recommended:</strong> Rev A stock can be consumed unless the ECO or release document explicitly marks Rev A as "Do Not Use." Engineering must proactively flag incompatible revisions.</div></div>
+      <div class="gov-rule"><span class="gov-outcome gov-warn">WARN</span><div>If consumed, the production record is annotated: "Built with Rev A stock — Rev B BOM in effect." Traceability preserved.</div></div>
+    </div>
+  </div>
+
+  <div class="gov-scenario">
+    <div class="gov-scenario-header">🔄 Scenario 4: Alternate Parts — Can They Auto-Replace?</div>
+    <div class="gov-scenario-body">
+      <div class="note warn" style="margin-bottom:12px">HINGE-A alternate group exists. Primary hinge is out of stock. Can the system auto-substitute an approved alternate?</div>
+      <div class="gov-rule"><span class="gov-outcome gov-block">BLOCK</span><div><strong>Default:</strong> Auto-substitution is blocked. A human (Manufacturing Engineer or Production Planner) must explicitly approve any alternate part use on a per-MO basis.</div></div>
+      <div class="gov-rule"><span class="gov-outcome gov-allow">ALLOW (Future)</span><div>Phase 2: Approved alternates in an Approved Vendor/Part List may be auto-substituted if an AVL flag permits it. Requires explicit AVL governance first.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ████ REPORTS ████ -->
+<section id="pg-reports" class="page">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Engineering Reports</div>
+      <div class="ph-sub">EBOM structures, revision history, release audit, traceability</div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn btn-secondary">⬇ Download PDF</button>
+    </div>
+  </div>
+  <div class="grid4" style="margin-bottom:16px">
+    <div class="card" style="cursor:pointer">
+      <div style="font-size:24px;margin-bottom:8px">📄</div>
+      <div style="font-weight:700;margin-bottom:4px">Indented EBOM</div>
+      <div style="font-size:12px;color:var(--muted)">Full multi-level engineering structure with quantities, revisions, and item types.</div>
+    </div>
+    <div class="card" style="cursor:pointer">
+      <div style="font-size:24px;margin-bottom:8px">📊</div>
+      <div style="font-weight:700;margin-bottom:4px">Flat BOM (Rollup)</div>
+      <div style="font-size:12px;color:var(--muted)">Flattened procurement and manufacturing view with extended quantities.</div>
+    </div>
+    <div class="card" style="cursor:pointer">
+      <div style="font-size:24px;margin-bottom:8px">🔍</div>
+      <div style="font-weight:700;margin-bottom:4px">Where Used</div>
+      <div style="font-size:12px;color:var(--muted)">Full impact tree for any item — all parent assemblies, EBOMs, MOs.</div>
+    </div>
+    <div class="card" style="cursor:pointer">
+      <div style="font-size:24px;margin-bottom:8px">🔒</div>
+      <div style="font-weight:700;margin-bottom:4px">Release Audit Trail</div>
+      <div style="font-size:12px;color:var(--muted)">Immutable log: EBOM → MRP BOM traceability for quality and compliance.</div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card" style="cursor:pointer">
+      <div style="font-size:24px;margin-bottom:8px">⎇</div>
+      <div style="font-weight:700;margin-bottom:4px">Revision History Report</div>
+      <div style="font-size:12px;color:var(--muted)">Full lifecycle history for an item: all revisions, approvers, effective dates, supersession chain.</div>
+    </div>
+    <div class="card" style="cursor:pointer">
+      <div style="font-size:24px;margin-bottom:8px">📡</div>
+      <div style="font-weight:700;margin-bottom:4px">Digital Twin Readiness (Future)</div>
+      <div style="font-size:12px;color:var(--muted)">Maps Released Items → Installed Assets → IoT registrations. Phase 3 capability.</div>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<!-- State detail data -->
+<script>
+const stateDetails = {
+  concept:{label:'Concept',cls:'p-concept',desc:'Idea stage. Item exists for planning and estimation. Not yet assigned to any engineering effort.',allowed:['Create item','Edit all fields','Delete item','Link to project'],forbidden:['Include in EBOM','MRP Release','Manufacturing Orders','Procurement']},
+  prototype:{label:'Prototype',cls:'p-proto',desc:'Experimental component. Used in prototype builds only. Changes expected.',allowed:['Include in Prototype EBOM','Engineering work','Document attachment','Full field editing'],forbidden:['Production MRP Release','Procurement Orders (standard)','Maintenance Assets']},
+  engineering:{label:'Engineering',cls:'p-eng',desc:'Under active design. Item is part of an active Engineering BOM. Revision drafts are in progress.',allowed:['Revision creation','EBOM inclusion','Document attachment','Supplier research'],forbidden:['MRP Release (until revision reaches Released)','Production Manufacturing Orders']},
+  released:{label:'Released',cls:'p-released',desc:'Approved for production. All downstream manufacturing, purchasing, and inventory operations reference Released items. IMMUTABLE.',allowed:['MRP BOM generation','Manufacturing Orders','Purchasing','Inventory transactions','Create new Revision (via explicit action)'],forbidden:['Direct field modification (system blocked at ORM)','Deletion','Silent change of any kind']},
+  service:{label:'Service',cls:'p-service',desc:'Production discontinued. Item supported as a service/spare part for existing installed units only.',allowed:['Maintenance BOMs','Spare part ordering','Service documentation'],forbidden:['New production runs','New Engineering BOMs (as primary)']},
+  obsolete:{label:'Obsolete',cls:'p-obsolete',desc:'Retired item. No new use in any context. Historical record preserved permanently for traceability.',allowed:['Read-only viewing','Audit queries'],forbidden:['Any modification','Any new usage','Deletion (record preserved forever)']}
+};
+
+function selectState(key){
+  const s=stateDetails[key];
+  document.getElementById('state-detail').innerHTML=`
+    <div class="card-title"><span class="pill ${s.cls}">${s.label}</span> &nbsp; State Rules</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">${s.desc}</p>
+    <div class="grid2">
+      <div><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">✓ ALLOWED</div>
+      ${s.allowed.map(a=>`<div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;gap:8px"><span style="color:var(--green)">✓</span>${a}</div>`).join('')}
+      </div>
+      <div><div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:8px">✗ FORBIDDEN</div>
+      ${s.forbidden.map(f=>`<div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;gap:8px"><span style="color:var(--red)">✗</span>${f}</div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// Architecture docs data
+const archDocs=[
+  {num:'020',name:'State Machine Bible',file:'020_State_Machine_Bible.md',pct:25,p:'P1',pcls:'arch-p1'},
+  {num:'021',name:'Odoo Compatibility Matrix',file:'021_Odoo_Compatibility_Matrix.md',pct:10,p:'P2',pcls:'arch-p1'},
+  {num:'022',name:'UI Specification',file:'022_UI_Specification.md',pct:35,p:'P3',pcls:'arch-p1'},
+  {num:'023',name:'API Bible',file:'023_API_Bible.md',pct:20,p:'P4',pcls:'arch-p2'},
+  {num:'024',name:'Non-Functional Requirements',file:'024_NFR.md',pct:15,p:'P5',pcls:'arch-p2'},
+  {num:'025',name:'Digital Twin Strategy',file:'025_Digital_Twin_Strategy.md',pct:20,p:'P6',pcls:'arch-p2'},
+  {num:'026',name:'Manufacturing Governance',file:'026_Manufacturing_Governance.md',pct:10,p:'P7',pcls:'arch-p1'},
+  {num:'027',name:'AI Development Governance',file:'027_AI_Development_Governance.md',pct:25,p:'P8',pcls:'arch-p3'},
+];
+function renderArchDocs(){
+  const c=document.getElementById('arch-docs');
+  if(!c)return;
+  c.innerHTML=archDocs.map(d=>`
+    <div class="arch-item">
+      <div>
+        <div class="arch-name">${d.num} — ${d.name}</div>
+        <div class="arch-file">${d.file}</div>
+      </div>
+      <div class="arch-bar-wrap">
+        <div class="progress-wrap"><div class="progress-bar" style="width:${d.pct}%;background:${d.pct<20?'var(--red)':d.pct<50?'var(--amber)':'var(--green)'}"></div></div>
+      </div>
+      <div class="arch-pct">${d.pct}%</div>
+      <span class="arch-priority ${d.pcls}">${d.p}</span>
+    </div>`).join('');
+}
+renderArchDocs();
+
+// Navigation
+function navApp(section){
+  document.querySelectorAll('.topnav button').forEach(b=>b.classList.remove('ta'));
+  document.getElementById('nav-'+section).classList.add('ta');
+  const map={dashboard:'pg-dashboard',engineering:'pg-items',release:'pg-release',governance:'pg-governance',reports:'pg-reports'};
+  const sideMap={dashboard:'si-dashboard',engineering:'si-items',release:'si-release',governance:'si-gov',reports:'si-reports'};
+  if(map[section]){
+    showPage(map[section],document.getElementById(sideMap[section]));
+  }
+}
+
+// Page switching
+function showPage(id,sideEl){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.side-item').forEach(i=>i.classList.remove('active'));
+  const pg=document.getElementById(id);
+  if(pg)pg.classList.add('active');
+  if(sideEl)sideEl.classList.add('active');
+}
+
+// Tab switching
+function switchTab(group,idx,el){
+  const tabs=el.parentElement.querySelectorAll('.tab');
+  tabs.forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const panels=document.querySelectorAll(`[id^="${group}-tp-"]`);
+  panels.forEach((p,i)=>{
+    p.classList.toggle('active',i===idx);
+  });
+}
+
+// EBOM tree toggle
+function toggleNode(el){
+  const next=el.nextElementSibling;
+  if(!next)return;
+  const isOpen=next.style.display!=='none';
+  next.style.display=isOpen?'none':'block';
+  el.textContent=el.textContent.replace(isOpen?'▼':'▶',isOpen?'▶':'▼');
+}
+</script>
+</body>
+</html>
