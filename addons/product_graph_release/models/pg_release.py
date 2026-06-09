@@ -282,10 +282,15 @@ class PgRelease(models.Model):
 
         except Exception as exc:
             _logger.exception('pg.release %s FAILED', self.name)
-            # Savepoint rollback already happened — record failure outside it
-            self.env.cr.rollback()
-            # Re-acquire self after rollback
-            self.env.cache.invalidate()
+            # The savepoint context manager has already rolled back the inner
+            # work. The state='executing' marker (written outside the
+            # savepoint) gets overwritten below by state='failed', so the
+            # final committed state is correct.
+            #
+            # NB: do NOT call self.env.cr.rollback() here. It rolls back the
+            # entire outer transaction (including the caller's prior work)
+            # and the test framework explicitly forbids it
+            # ("Cannot commit or rollback a cursor from inside a test").
             self.write({
                 'state': 'failed',
                 'failure_reason': f'{exc}\n\n{traceback.format_exc()}',
@@ -324,8 +329,12 @@ class PgRelease(models.Model):
                 "Root revision %s must be Released. Current: %s",
                 revision.display_name, revision.state,
             ))
-        # Every child line item must be released and have a product (or be created here)
+        # Every child line item must be released. Auto-create a product
+        # for any released child that lacks one when create_product_if_missing
+        # is on, matching the same policy applied to the root item via
+        # _ensure_product().
         missing = []
+        needs_product = self.env['pg.item']
         for line in ebom.ebom_line_ids:
             comp = line.pg_item_id
             if comp.state != 'released':
@@ -333,7 +342,13 @@ class PgRelease(models.Model):
                     comp.display_name, comp.state,
                 ))
             elif not comp.product_id:
-                missing.append(_("%s — no linked Odoo product") % comp.display_name)
+                if self.create_product_if_missing:
+                    needs_product |= comp
+                else:
+                    missing.append(_(
+                        "%s — no linked Odoo product and "
+                        "'Create Product If Missing' is off."
+                    ) % comp.display_name)
         if missing:
             raise UserError(_(
                 "Pre-release validation failed for EBOM %s:\n• %s\n\n"
@@ -341,6 +356,8 @@ class PgRelease(models.Model):
                 ebom.display_name,
                 '\n• '.join(missing),
             ))
+        for comp in needs_product:
+            self._ensure_product(comp)
 
     def _ensure_product(self, item):
         """Return existing product.product or create one (bypass-flagged)."""
@@ -476,8 +493,14 @@ class PgRelease(models.Model):
         self._notify_affected_pos()
 
     def _notify_affected_pos(self):
-        """MG-2 — find open PO lines on the product and post a chatter note."""
+        """MG-2 — find open PO lines on the product and post a chatter note.
+
+        `purchase` is not a hard dependency: when the module is not installed,
+        there are no PO lines to warn about, so this is a no-op.
+        """
         if not self.product_id:
+            return
+        if 'purchase.order.line' not in self.env:
             return
         open_po_lines = self.env['purchase.order.line'].search([
             ('product_id', '=', self.product_id.id),
