@@ -9,7 +9,7 @@ class TestPgRelease(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.env.user.groups_id |= (
+        cls.env.user.group_ids |= (
             cls.env.ref('product_graph_base.group_pg_engineer')
             | cls.env.ref('product_graph_base.group_pg_approver')
             | cls.env.ref('product_graph_base.group_pg_admin')
