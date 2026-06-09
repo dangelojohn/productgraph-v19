@@ -11,7 +11,6 @@
                 <field name="name"/>
                 <field name="serial_number"/>
                 <field name="item_id"/>
-                <field name="revision_id"/>
                 <field name="location"/>
                 <field name="state" widget="badge"/>
                 <field name="install_date"/>
@@ -39,7 +38,6 @@
                         <group>
                             <field name="serial_number"/>
                             <field name="item_id"/>
-                            <field name="revision_id"/>
                         </group>
                         <group>
                             <field name="location"/>

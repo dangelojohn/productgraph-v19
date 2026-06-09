@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Extend pg.asset list to surface the revision link added by this module -->
+    <record id="view_pg_asset_list_inherit_revision" model="ir.ui.view">
+        <field name="name">pg.asset.list.inherit.revision</field>
+        <field name="model">pg.asset</field>
+        <field name="inherit_id" ref="product_graph_base.view_pg_asset_list"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='item_id']" position="after">
+                <field name="revision_id" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_pg_asset_form_inherit_revision" model="ir.ui.view">
+        <field name="name">pg.asset.form.inherit.revision</field>
+        <field name="model">pg.asset</field>
+        <field name="inherit_id" ref="product_graph_base.view_pg_asset_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='item_id']" position="after">
+                <field name="revision_id"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

@@ -36,6 +36,7 @@ Compatible with Odoo 19.0 Community Edition.
         'views/pg_property_value_views.xml',
         'views/pg_document_views.xml',
         'views/pg_revision_views.xml',
+        'views/pg_asset_views.xml',
         'wizards/pg_revision_reject_wizard_views.xml',
         'views/pg_revision_menus.xml',
     ],

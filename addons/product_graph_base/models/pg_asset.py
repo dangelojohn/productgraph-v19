@@ -28,12 +28,9 @@ class PgAsset(models.Model):
         index=True,
         tracking=True,
     )
-    revision_id = fields.Many2one(
-        'pg.revision',
-        string='Installed Revision',
-        domain="[('item_id', '=', item_id), ('state', '=', 'released')]",
-        tracking=True,
-    )
+    # revision_id is added via _inherit in product_graph_revision so pg.asset
+    # stays installable without pg.revision being present (Phase 1 — asset is
+    # a stub; the full Phase 3 module will deepen this).
 
     state = fields.Selection(
         [

@@ -30,7 +30,7 @@ class PgCategory(models.Model):
         ondelete='cascade',
         index=True,
     )
-    parent_path = fields.Char(index=True, unaccent=False)
+    parent_path = fields.Char(index=True)
     child_ids = fields.One2many('pg.category', 'parent_id', string='Sub-categories')
 
     code = fields.Char(string='Code', size=10, index=True)
