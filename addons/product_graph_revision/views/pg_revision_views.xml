@@ -172,7 +172,7 @@
                 <filter string="Superseded" name="state_superseded" domain="[('state','=','superseded')]"/>
                 <separator/>
                 <filter string="Incompatible" name="incompat" domain="[('incompatible_with_previous','=',True)]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter string="Item" name="grp_item" context="{'group_by':'item_id'}"/>
                     <filter string="State" name="grp_state" context="{'group_by':'state'}"/>
                     <filter string="Released By" name="grp_released_by" context="{'group_by':'released_by_id'}"/>

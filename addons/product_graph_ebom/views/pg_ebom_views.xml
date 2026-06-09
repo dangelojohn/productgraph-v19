@@ -140,7 +140,7 @@
                 <separator/>
                 <filter string="Production" name="ebom_prod" domain="[('ebom_type','=','production')]"/>
                 <filter string="Prototype" name="ebom_proto" domain="[('ebom_type','=','prototype')]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter string="Root Item" name="grp_root" context="{'group_by':'root_item_id'}"/>
                     <filter string="State" name="grp_state" context="{'group_by':'state'}"/>
                     <filter string="EBOM Type" name="grp_type" context="{'group_by':'ebom_type'}"/>

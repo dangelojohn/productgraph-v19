@@ -74,7 +74,7 @@
                 <field name="item_type"/>
                 <separator/>
                 <filter string="Active" name="active" domain="[('active','=',True)]"/>
-                <group expand="1" string="Group By">
+                <group>
                     <filter string="Item Type" name="grp_item_type" context="{'group_by':'item_type'}"/>
                 </group>
             </search>

@@ -197,7 +197,7 @@
                 <separator/>
                 <filter string="My Items" name="my_items"
                         domain="[('responsible_id','=',uid)]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter string="State" name="grp_state" context="{'group_by':'state'}"/>
                     <filter string="Item Type" name="grp_type" context="{'group_by':'item_type'}"/>
                     <filter string="Category" name="grp_category" context="{'group_by':'category_id'}"/>

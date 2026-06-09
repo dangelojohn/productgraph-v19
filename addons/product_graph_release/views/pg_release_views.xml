@@ -130,7 +130,7 @@
                 <filter string="Completed" name="state_completed" domain="[('state','=','completed')]"/>
                 <filter string="Failed" name="state_failed" domain="[('state','=','failed')]"/>
                 <filter string="With Frozen MOs" name="frozen" domain="[('frozen_mo_count','>',0)]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter string="State" name="grp_state" context="{'group_by':'state'}"/>
                     <filter string="Root Item" name="grp_root" context="{'group_by':'root_item_id'}"/>
                     <filter string="Released By" name="grp_user" context="{'group_by':'released_by_id'}"/>

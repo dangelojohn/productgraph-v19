@@ -64,7 +64,7 @@
                 <filter string="State Changes" name="f_state" domain="[('action','=','state_change')]"/>
                 <filter string="Releases" name="f_release" domain="[('action','=','release')]"/>
                 <filter string="Blocked Writes" name="f_blocked" domain="[('action','=','field_write_blocked')]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter string="Action" name="g_action" context="{'group_by':'action'}"/>
                     <filter string="User" name="g_user" context="{'group_by':'user_id'}"/>
                     <filter string="Model" name="g_model" context="{'group_by':'res_model'}"/>

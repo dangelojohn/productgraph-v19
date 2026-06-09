@@ -25,7 +25,7 @@
                 <field name="descendant_id"/>
                 <filter string="Direct Children Only" name="direct"
                         domain="[('depth','=',1)]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter string="EBOM" name="grp_ebom" context="{'group_by':'ebom_id'}"/>
                     <filter string="Ancestor" name="grp_anc" context="{'group_by':'ancestor_id'}"/>
                     <filter string="Depth" name="grp_depth" context="{'group_by':'depth'}"/>
