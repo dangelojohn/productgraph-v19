@@ -11,7 +11,9 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src/ ./src/
-COPY pyproject.toml ./
+# README.md is referenced by pyproject.toml's `readme = "README.md"`;
+# hatchling fails the build_editable hook if it isn't present.
+COPY pyproject.toml README.md ./
 RUN pip install --no-cache-dir -e .
 
 # Default — SSE transport on :9234 for the QNAP alfacore-caddy network.
