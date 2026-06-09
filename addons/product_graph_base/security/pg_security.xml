@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+
+        <!-- ============================================================
+             Security Category
+             ============================================================ -->
+        <record id="module_category_pg" model="ir.module.category">
+            <field name="name">ProductGraph</field>
+            <field name="description">Engineering catalog, revision control, and release governance.</field>
+            <field name="sequence">50</field>
+        </record>
+
+        <!-- ============================================================
+             Security Groups
+             Linear hierarchy per Architecture Bible §6.3 — each group is a
+             strict superset of the previous:
+                viewer ⊂ user ⊂ mfg ⊂ engineer ⊂ approver ⊂ admin
+             ============================================================ -->
+
+        <!-- Viewer: pure read-only over the entire pg.* surface -->
+        <record id="group_pg_viewer" model="res.groups">
+            <field name="name">Viewer</field>
+            <field name="category_id" ref="module_category_pg"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Read-only access to all ProductGraph records.</field>
+        </record>
+
+        <!-- User: viewer + create concepts -->
+        <record id="group_pg_user" model="res.groups">
+            <field name="name">User</field>
+            <field name="category_id" ref="module_category_pg"/>
+            <field name="implied_ids" eval="[(4, ref('group_pg_viewer'))]"/>
+            <field name="comment">
+                Read everything, plus may create concept-state items.
+                Cannot edit released records.
+            </field>
+        </record>
+
+        <!-- Manufacturing: user + MO/PO traceability view -->
+        <record id="group_pg_mfg" model="res.groups">
+            <field name="name">Manufacturing</field>
+            <field name="category_id" ref="module_category_pg"/>
+            <field name="implied_ids" eval="[(4, ref('group_pg_user'))]"/>
+            <field name="comment">
+                Manufacturing engineer / production planner role.
+                Reads everything plus has visibility into MO traceability and
+                receives manufacturing-collision notifications.
+            </field>
+        </record>
+
+        <!-- Engineer: full engineering ops -->
+        <record id="group_pg_engineer" model="res.groups">
+            <field name="name">Engineer</field>
+            <field name="category_id" ref="module_category_pg"/>
+            <field name="implied_ids" eval="[(4, ref('group_pg_mfg'))]"/>
+            <field name="comment">
+                Full engineering authority: create and edit items, revisions,
+                EBOMs; submit for review; manage property templates.
+                Cannot approve or release.
+            </field>
+        </record>
+
+        <!-- Approver: release + approve -->
+        <record id="group_pg_approver" model="res.groups">
+            <field name="name">Approver</field>
+            <field name="category_id" ref="module_category_pg"/>
+            <field name="implied_ids" eval="[(4, ref('group_pg_engineer'))]"/>
+            <field name="comment">
+                Approves revisions and EBOMs. Sole authority over
+                pg.release.action_execute_release — therefore the ONLY group
+                that can cause mrp.bom records to be written from
+                ProductGraph data.
+            </field>
+        </record>
+
+        <!-- Admin: configuration, obsolescence, deletion of drafts -->
+        <record id="group_pg_admin" model="res.groups">
+            <field name="name">Administrator</field>
+            <field name="category_id" ref="module_category_pg"/>
+            <field name="implied_ids" eval="[(4, ref('group_pg_approver'))]"/>
+            <field name="users" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">
+                Full access. May obsolete records, manage property templates,
+                configure sequences, hard-delete concept-state records, and
+                administer audit log retention policy.
+            </field>
+        </record>
+
+    </data>
+</odoo>

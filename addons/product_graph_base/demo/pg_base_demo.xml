@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- ─── Demo property template (Cabinet shop flavor) ─────────────── -->
+        <record id="prop_tmpl_cabinet_mech" model="pg.property.template">
+            <field name="name">Cabinet Mechanical</field>
+            <field name="code">CABINET_MECH</field>
+            <field name="item_type">assembly</field>
+            <field name="description">Dimensional + finish properties for cabinet assemblies.</field>
+        </record>
+
+        <record id="prop_fld_cabinet_width" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_cabinet_mech"/>
+            <field name="key">width_mm</field>
+            <field name="label">Width (mm)</field>
+            <field name="field_type">integer</field>
+            <field name="is_required">True</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="prop_fld_cabinet_height" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_cabinet_mech"/>
+            <field name="key">height_mm</field>
+            <field name="label">Height (mm)</field>
+            <field name="field_type">integer</field>
+            <field name="is_required">True</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="prop_fld_cabinet_depth" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_cabinet_mech"/>
+            <field name="key">depth_mm</field>
+            <field name="label">Depth (mm)</field>
+            <field name="field_type">integer</field>
+            <field name="is_required">True</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="prop_fld_cabinet_material" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_cabinet_mech"/>
+            <field name="key">core_material</field>
+            <field name="label">Core Material</field>
+            <field name="field_type">selection</field>
+            <field name="selection_options">MDF,Plywood,Particleboard,Solid Wood</field>
+            <field name="sequence">40</field>
+        </record>
+        <record id="prop_fld_cabinet_finish" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_cabinet_mech"/>
+            <field name="key">finish_grade</field>
+            <field name="label">Finish Grade</field>
+            <field name="field_type">selection</field>
+            <field name="selection_options">A,B,C,Shop</field>
+            <field name="sequence">50</field>
+        </record>
+
+        <!-- Vendor component template for purchased hinges/slides -->
+        <record id="prop_tmpl_purchased" model="pg.property.template">
+            <field name="name">Vendor Component</field>
+            <field name="code">VENDOR_COMP</field>
+            <field name="item_type">purchased</field>
+            <field name="description">Vendor part number and procurement hints for purchased components.</field>
+        </record>
+        <record id="prop_fld_mpn" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_purchased"/>
+            <field name="key">mpn</field>
+            <field name="label">Manufacturer Part Number</field>
+            <field name="field_type">char</field>
+            <field name="is_required">True</field>
+        </record>
+        <record id="prop_fld_lead_time" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_purchased"/>
+            <field name="key">lead_time_days</field>
+            <field name="label">Lead Time (days)</field>
+            <field name="field_type">integer</field>
+        </record>
+
+        <!-- ─── Demo items ──────────────────────────────────────────────── -->
+        <record id="demo_item_base_cabinet" model="pg.item">
+            <field name="name">Base Cabinet 600</field>
+            <field name="item_type">assembly</field>
+            <field name="category_id" ref="cat_mechanical"/>
+            <field name="state">engineering</field>
+            <field name="property_template_ids" eval="[(4, ref('prop_tmpl_cabinet_mech'))]"/>
+            <field name="description"><![CDATA[<p>600mm-wide base cabinet, demo assembly.</p>]]></field>
+        </record>
+
+        <record id="demo_item_soft_close_hinge" model="pg.item">
+            <field name="name">Soft Close Hinge — Concealed</field>
+            <field name="item_type">purchased</field>
+            <field name="category_id" ref="cat_mechanical"/>
+            <field name="state">engineering</field>
+            <field name="property_template_ids" eval="[(4, ref('prop_tmpl_purchased'))]"/>
+        </record>
+
+    </data>
+</odoo>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- ============================================================
+             Per-item-type sequences (Bible §7.1 / R6)
+             ============================================================ -->
+
+        <record id="seq_pg_item_asm" model="ir.sequence">
+            <field name="name">ProductGraph — Assembly</field>
+            <field name="code">pg.item.asm</field>
+            <field name="prefix">PG-ASM-</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_pg_item_prt" model="ir.sequence">
+            <field name="name">ProductGraph — Manufactured Part</field>
+            <field name="code">pg.item.prt</field>
+            <field name="prefix">PG-PRT-</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_pg_item_buy" model="ir.sequence">
+            <field name="name">ProductGraph — Purchased Component</field>
+            <field name="code">pg.item.buy</field>
+            <field name="prefix">PG-BUY-</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_pg_item_doc" model="ir.sequence">
+            <field name="name">ProductGraph — Document</field>
+            <field name="code">pg.item.doc</field>
+            <field name="prefix">PG-DOC-</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_pg_item_sft" model="ir.sequence">
+            <field name="name">ProductGraph — Software</field>
+            <field name="code">pg.item.sft</field>
+            <field name="prefix">PG-SFT-</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_pg_item_svc" model="ir.sequence">
+            <field name="name">ProductGraph — Service</field>
+            <field name="code">pg.item.svc</field>
+            <field name="prefix">PG-SVC-</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+    </data>
+</odoo>

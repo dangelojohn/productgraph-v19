@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ─── pg.property.template ────────────────────────────────────────── -->
+
+    <record id="view_pg_property_template_list" model="ir.ui.view">
+        <field name="name">pg.property.template.list</field>
+        <field name="model">pg.property.template</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="item_type"/>
+                <field name="field_count" string="# Fields"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_property_template_form" model="ir.ui.view">
+        <field name="name">pg.property.template.form</field>
+        <field name="model">pg.property.template</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="e.g. Cabinet Mechanical"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code" placeholder="CABINET_MECH"/>
+                            <field name="item_type"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="sequence"/>
+                            <field name="field_count" string="# Fields"/>
+                        </group>
+                    </group>
+                    <field name="description" placeholder="What this template captures…"/>
+                    <notebook>
+                        <page string="Fields">
+                            <field name="field_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="key" placeholder="width_mm"/>
+                                    <field name="label" placeholder="Width (mm)"/>
+                                    <field name="field_type"/>
+                                    <field name="is_required" widget="boolean_toggle"/>
+                                    <field name="selection_options"
+                                           column_invisible="parent.field_type != 'selection'"
+                                           placeholder="S,M,L"/>
+                                    <field name="uom_id" optional="hide"/>
+                                    <field name="default_value" optional="hide"/>
+                                    <field name="help_text" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_pg_property_template_search" model="ir.ui.view">
+        <field name="name">pg.property.template.search</field>
+        <field name="model">pg.property.template</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="item_type"/>
+                <separator/>
+                <filter string="Active" name="active" domain="[('active','=',True)]"/>
+                <group expand="1" string="Group By">
+                    <filter string="Item Type" name="grp_item_type" context="{'group_by':'item_type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pg_property_template" model="ir.actions.act_window">
+        <field name="name">Property Templates</field>
+        <field name="res_model">pg.property.template</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create property templates to attach OpenBOM-style custom
+                attributes to engineering items.
+            </p>
+        </field>
+    </record>
+
+</odoo>

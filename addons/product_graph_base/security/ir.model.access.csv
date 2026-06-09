@@ -1,0 +1,36 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+# ─── pg.category ──────────────────────────────────────────────────────────────
+access_pg_category_viewer,pg.category viewer,model_pg_category,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_category_engineer,pg.category engineer,model_pg_category,product_graph_base.group_pg_engineer,1,1,1,0
+access_pg_category_admin,pg.category admin,model_pg_category,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.item.tag ──────────────────────────────────────────────────────────────
+access_pg_item_tag_viewer,pg.item.tag viewer,model_pg_item_tag,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_item_tag_engineer,pg.item.tag engineer,model_pg_item_tag,product_graph_base.group_pg_engineer,1,1,1,0
+access_pg_item_tag_admin,pg.item.tag admin,model_pg_item_tag,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.property.template ─────────────────────────────────────────────────────
+access_pg_prop_tmpl_viewer,pg.property.template viewer,model_pg_property_template,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_prop_tmpl_engineer,pg.property.template engineer,model_pg_property_template,product_graph_base.group_pg_engineer,1,1,1,0
+access_pg_prop_tmpl_admin,pg.property.template admin,model_pg_property_template,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.property.field ────────────────────────────────────────────────────────
+access_pg_prop_field_viewer,pg.property.field viewer,model_pg_property_field,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_prop_field_engineer,pg.property.field engineer,model_pg_property_field,product_graph_base.group_pg_engineer,1,1,1,1
+access_pg_prop_field_admin,pg.property.field admin,model_pg_property_field,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.item ──────────────────────────────────────────────────────────────────
+access_pg_item_viewer,pg.item viewer,model_pg_item,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_item_user,pg.item user,model_pg_item,product_graph_base.group_pg_user,1,1,1,0
+access_pg_item_engineer,pg.item engineer,model_pg_item,product_graph_base.group_pg_engineer,1,1,1,0
+access_pg_item_admin,pg.item admin,model_pg_item,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.vendor (Phase 2 stub) ─────────────────────────────────────────────────
+access_pg_vendor_viewer,pg.vendor viewer,model_pg_vendor,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_vendor_admin,pg.vendor admin,model_pg_vendor,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.vendor.part (Phase 2 stub) ────────────────────────────────────────────
+access_pg_vendor_part_viewer,pg.vendor.part viewer,model_pg_vendor_part,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_vendor_part_admin,pg.vendor.part admin,model_pg_vendor_part,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.asset (Phase 3 stub) ──────────────────────────────────────────────────
+access_pg_asset_viewer,pg.asset viewer,model_pg_asset,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_asset_engineer,pg.asset engineer,model_pg_asset,product_graph_base.group_pg_engineer,1,1,1,0
+access_pg_asset_admin,pg.asset admin,model_pg_asset,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.audit.log (immutable — model enforces no write/unlink) ───────────────
+access_pg_audit_log_viewer,pg.audit.log viewer,model_pg_audit_log,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_audit_log_engineer,pg.audit.log engineer,model_pg_audit_log,product_graph_base.group_pg_engineer,1,0,1,0
+access_pg_audit_log_admin,pg.audit.log admin,model_pg_audit_log,product_graph_base.group_pg_admin,1,0,1,0

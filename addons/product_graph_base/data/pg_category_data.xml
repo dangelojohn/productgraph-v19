@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- ============================================================
+             Default engineering categories (top level)
+             Edit / extend freely per deployment.
+             ============================================================ -->
+
+        <record id="cat_mechanical" model="pg.category">
+            <field name="name">Mechanical</field>
+            <field name="code">MECH</field>
+            <field name="description">Mechanical assemblies, parts, fasteners, hardware.</field>
+        </record>
+
+        <record id="cat_electrical" model="pg.category">
+            <field name="name">Electrical</field>
+            <field name="code">ELEC</field>
+            <field name="description">Wiring, connectors, electronics, harnesses.</field>
+        </record>
+
+        <record id="cat_electronics" model="pg.category">
+            <field name="name">Electronics</field>
+            <field name="code">ECN</field>
+            <field name="description">PCB assemblies, components, firmware.</field>
+        </record>
+
+        <record id="cat_finishing" model="pg.category">
+            <field name="name">Finishing</field>
+            <field name="code">FIN</field>
+            <field name="description">Paint, plating, surface treatment.</field>
+        </record>
+
+        <record id="cat_packaging" model="pg.category">
+            <field name="name">Packaging</field>
+            <field name="code">PKG</field>
+            <field name="description">Crating, labels, shipping materials.</field>
+        </record>
+
+        <record id="cat_documentation" model="pg.category">
+            <field name="name">Documentation</field>
+            <field name="code">DOC</field>
+            <field name="description">Drawings, specifications, manuals.</field>
+        </record>
+
+        <record id="cat_software" model="pg.category">
+            <field name="name">Software</field>
+            <field name="code">SFT</field>
+            <field name="description">Firmware, applications, scripts.</field>
+        </record>
+
+        <record id="cat_service" model="pg.category">
+            <field name="name">Service</field>
+            <field name="code">SVC</field>
+            <field name="description">Service items: labor, calibration, inspection.</field>
+        </record>
+
+    </data>
+</odoo>

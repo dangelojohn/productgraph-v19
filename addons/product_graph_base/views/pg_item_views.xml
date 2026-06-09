@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ─── List ────────────────────────────────────────────────────────── -->
+    <record id="view_pg_item_list" model="ir.ui.view">
+        <field name="name">pg.item.list</field>
+        <field name="model">pg.item</field>
+        <field name="arch" type="xml">
+            <list decoration-info="state == 'engineering'"
+                  decoration-success="state == 'released'"
+                  decoration-muted="state == 'obsolete'"
+                  decoration-warning="state == 'service'">
+                <field name="part_number"/>
+                <field name="name"/>
+                <field name="category_id"/>
+                <field name="item_type"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'engineering'"
+                       decoration-success="state == 'released'"
+                       decoration-muted="state == 'obsolete'"
+                       decoration-warning="state == 'service'"/>
+                <field name="responsible_id"/>
+                <field name="revision_count" string="# Rev"/>
+                <field name="tag_ids" widget="many2many_tags" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ─── Kanban ──────────────────────────────────────────────────────── -->
+    <record id="view_pg_item_kanban" model="ir.ui.view">
+        <field name="name">pg.item.kanban</field>
+        <field name="model">pg.item</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column">
+                <field name="part_number"/>
+                <field name="name"/>
+                <field name="state"/>
+                <field name="item_type"/>
+                <field name="responsible_id"/>
+                <field name="color"/>
+                <templates>
+                    <t t-name="card">
+                        <div t-attf-class="oe_kanban_card oe_kanban_global_click">
+                            <div class="o_kanban_record_top">
+                                <strong><field name="part_number"/></strong>
+                                <span class="float-end"><field name="item_type"/></span>
+                            </div>
+                            <div class="o_kanban_record_body">
+                                <div><field name="name"/></div>
+                                <div class="text-muted"><field name="category_id"/></div>
+                            </div>
+                            <div class="o_kanban_record_bottom">
+                                <div class="oe_kanban_bottom_left">
+                                    <field name="responsible_id" widget="many2one_avatar_user"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- ─── Form ────────────────────────────────────────────────────────── -->
+    <record id="view_pg_item_form" model="ir.ui.view">
+        <field name="name">pg.item.form</field>
+        <field name="model">pg.item</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_to_prototype" string="To Prototype"
+                            type="object" class="oe_highlight"
+                            invisible="state != 'concept'"
+                            groups="product_graph_base.group_pg_engineer"/>
+                    <button name="action_to_engineering" string="To Engineering"
+                            type="object" class="oe_highlight"
+                            invisible="state not in ('concept','prototype')"
+                            groups="product_graph_base.group_pg_engineer"/>
+                    <button name="action_force_release" string="Force Release"
+                            type="object" confirm="Manually release this item without a linked revision?"
+                            invisible="state != 'engineering'"
+                            groups="product_graph_base.group_pg_approver"/>
+                    <button name="action_to_service" string="Move to Service"
+                            type="object" confirm="Move this item to Service? No new-production MOs may be created."
+                            invisible="state != 'released'"
+                            groups="product_graph_base.group_pg_approver"/>
+                    <button name="action_to_obsolete" string="Obsolete"
+                            type="object" confirm="Obsolete this item permanently? This cannot be undone."
+                            invisible="state not in ('released','service')"
+                            groups="product_graph_base.group_pg_admin"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="concept,prototype,engineering,released,service"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_revisions" type="object"
+                                class="oe_stat_button" icon="fa-history">
+                            <field name="revision_count" widget="statinfo" string="Revisions"/>
+                        </button>
+                        <button name="action_view_eboms" type="object"
+                                class="oe_stat_button" icon="fa-sitemap">
+                            <field name="ebom_count" widget="statinfo" string="EBOMs"/>
+                        </button>
+                        <button name="action_view_mrp_boms" type="object"
+                                class="oe_stat_button" icon="fa-cubes"
+                                invisible="not product_tmpl_id">
+                            <field name="bom_count" widget="statinfo" string="MRP BOMs"/>
+                        </button>
+                        <button name="action_view_mos" type="object"
+                                class="oe_stat_button" icon="fa-cogs"
+                                invisible="not product_id">
+                            <field name="mo_count" widget="statinfo" string="MOs"/>
+                        </button>
+                    </div>
+                    <field name="image_1920" widget="image" class="oe_avatar"/>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="display_name" readonly="1"/></h1>
+                        <h3><field name="name" placeholder="Item Name" required="1"/></h3>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="part_number" readonly="state != 'concept'"/>
+                            <field name="item_type" readonly="state not in ('concept','prototype')"/>
+                            <field name="category_id"/>
+                            <field name="uom_id" readonly="state == 'released'"/>
+                            <field name="responsible_id"/>
+                        </group>
+                        <group>
+                            <field name="product_id" readonly="1"/>
+                            <field name="tag_ids" widget="many2many_tags"
+                                   options="{'color_field': 'color', 'no_create_edit': True}"/>
+                            <field name="released_date" readonly="1"
+                                   invisible="state not in ('released','service','obsolete')"/>
+                            <field name="service_date" readonly="1"
+                                   invisible="state not in ('service','obsolete')"/>
+                            <field name="obsolete_date" readonly="1"
+                                   invisible="state != 'obsolete'"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description" name="page_description">
+                            <field name="description" placeholder="Engineering description…"/>
+                        </page>
+                        <page string="Properties" name="page_properties">
+                            <field name="property_template_ids" widget="many2many_tags"
+                                   options="{'no_create': True}"/>
+                            <p class="text-muted">
+                                Attached property templates make their fields available
+                                for value entry on this item's revisions.
+                            </p>
+                        </page>
+                        <page string="Engineering Notes" name="page_eng_notes"
+                              groups="product_graph_base.group_pg_engineer">
+                            <field name="internal_notes" placeholder="Internal engineering notes…"/>
+                        </page>
+                        <page string="Manufacturing Notes" name="page_mfg_notes">
+                            <field name="manufacturing_notes" placeholder="Notes visible to Manufacturing…"/>
+                        </page>
+                        <page string="Phase 3 Stub" name="page_digital_twin"
+                              groups="base.group_no_one">
+                            <group>
+                                <field name="asset_template_category"/>
+                                <field name="asset_count" string="# Installed Assets"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ─── Search ──────────────────────────────────────────────────────── -->
+    <record id="view_pg_item_search" model="ir.ui.view">
+        <field name="name">pg.item.search</field>
+        <field name="model">pg.item</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="part_number"/>
+                <field name="name"/>
+                <field name="category_id"/>
+                <field name="tag_ids"/>
+                <field name="responsible_id"/>
+                <separator/>
+                <filter string="Concept" name="state_concept" domain="[('state','=','concept')]"/>
+                <filter string="Prototype" name="state_prototype" domain="[('state','=','prototype')]"/>
+                <filter string="Engineering" name="state_engineering" domain="[('state','=','engineering')]"/>
+                <filter string="Released" name="state_released" domain="[('state','=','released')]"/>
+                <filter string="Service" name="state_service" domain="[('state','=','service')]"/>
+                <filter string="Obsolete" name="state_obsolete" domain="[('state','=','obsolete')]"/>
+                <separator/>
+                <filter string="Assemblies" name="type_asm" domain="[('item_type','=','assembly')]"/>
+                <filter string="Parts" name="type_prt" domain="[('item_type','=','part')]"/>
+                <filter string="Purchased" name="type_buy" domain="[('item_type','=','purchased')]"/>
+                <separator/>
+                <filter string="My Items" name="my_items"
+                        domain="[('responsible_id','=',uid)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="State" name="grp_state" context="{'group_by':'state'}"/>
+                    <filter string="Item Type" name="grp_type" context="{'group_by':'item_type'}"/>
+                    <filter string="Category" name="grp_category" context="{'group_by':'category_id'}"/>
+                    <filter string="Responsible" name="grp_responsible" context="{'group_by':'responsible_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ─── Action ──────────────────────────────────────────────────────── -->
+    <record id="action_pg_item" model="ir.actions.act_window">
+        <field name="name">Engineering Items</field>
+        <field name="res_model">pg.item</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="search_view_id" ref="view_pg_item_search"/>
+        <field name="context">{'search_default_state_released': 0}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first engineering item.
+            </p><p>
+                Items move through the lifecycle:
+                concept → prototype → engineering → released → service → obsolete.
+            </p>
+        </field>
+    </record>
+
+</odoo>

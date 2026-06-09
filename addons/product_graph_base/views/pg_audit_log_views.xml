@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_audit_log_list" model="ir.ui.view">
+        <field name="name">pg.audit.log.list</field>
+        <field name="model">pg.audit.log</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false"
+                  decoration-info="action == 'state_change'"
+                  decoration-success="action == 'release'"
+                  decoration-warning="action == 'field_write_blocked'">
+                <field name="create_date" string="When"/>
+                <field name="res_model"/>
+                <field name="res_name"/>
+                <field name="action" widget="badge"/>
+                <field name="from_state"/>
+                <field name="to_state"/>
+                <field name="user_name"/>
+                <field name="notes" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_audit_log_form" model="ir.ui.view">
+        <field name="name">pg.audit.log.form</field>
+        <field name="model">pg.audit.log</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false" delete="false">
+                <sheet>
+                    <div class="oe_title">
+                        <h2><field name="name" readonly="1"/></h2>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="create_date" string="When" readonly="1"/>
+                            <field name="user_id" readonly="1"/>
+                            <field name="action" readonly="1"/>
+                            <field name="from_state" readonly="1"/>
+                            <field name="to_state" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="res_model" readonly="1"/>
+                            <field name="res_id" readonly="1"/>
+                            <field name="res_name" readonly="1"/>
+                            <field name="triggered_by_model" readonly="1"/>
+                            <field name="triggered_by_res_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <field name="notes" readonly="1"/>
+                    <field name="payload" readonly="1" groups="base.group_no_one"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_pg_audit_log_search" model="ir.ui.view">
+        <field name="name">pg.audit.log.search</field>
+        <field name="model">pg.audit.log</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="res_name"/>
+                <field name="user_id"/>
+                <field name="action"/>
+                <filter string="State Changes" name="f_state" domain="[('action','=','state_change')]"/>
+                <filter string="Releases" name="f_release" domain="[('action','=','release')]"/>
+                <filter string="Blocked Writes" name="f_blocked" domain="[('action','=','field_write_blocked')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Action" name="g_action" context="{'group_by':'action'}"/>
+                    <filter string="User" name="g_user" context="{'group_by':'user_id'}"/>
+                    <filter string="Model" name="g_model" context="{'group_by':'res_model'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pg_audit_log" model="ir.actions.act_window">
+        <field name="name">Audit Log</field>
+        <field name="res_model">pg.audit.log</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ─── Root menu ───────────────────────────────────────────────────── -->
+    <menuitem id="menu_pg_root"
+              name="ProductGraph"
+              sequence="50"
+              web_icon="product_graph_base,static/description/icon.png"
+              groups="product_graph_base.group_pg_viewer"/>
+
+    <!-- ─── Engineering ─────────────────────────────────────────────────── -->
+    <menuitem id="menu_pg_engineering"
+              name="Engineering"
+              parent="menu_pg_root"
+              sequence="10"/>
+
+    <menuitem id="menu_pg_item"
+              name="Items"
+              parent="menu_pg_engineering"
+              action="action_pg_item"
+              sequence="10"/>
+
+    <!-- ─── Analysis ────────────────────────────────────────────────────── -->
+    <menuitem id="menu_pg_analysis"
+              name="Analysis"
+              parent="menu_pg_root"
+              sequence="30"/>
+
+    <menuitem id="menu_pg_audit_log"
+              name="Audit Log"
+              parent="menu_pg_analysis"
+              action="action_pg_audit_log"
+              sequence="50"/>
+
+    <!-- ─── Assets (Phase 3 visible to engineer+) ──────────────────────── -->
+    <menuitem id="menu_pg_assets"
+              name="Installed Assets"
+              parent="menu_pg_analysis"
+              action="action_pg_asset"
+              sequence="60"
+              groups="product_graph_base.group_pg_engineer"/>
+
+    <!-- ─── Configuration ──────────────────────────────────────────────── -->
+    <menuitem id="menu_pg_config"
+              name="Configuration"
+              parent="menu_pg_root"
+              sequence="90"
+              groups="product_graph_base.group_pg_engineer"/>
+
+    <menuitem id="menu_pg_category"
+              name="Engineering Categories"
+              parent="menu_pg_config"
+              action="action_pg_category"
+              sequence="10"/>
+
+    <menuitem id="menu_pg_item_tag"
+              name="Item Tags"
+              parent="menu_pg_config"
+              action="action_pg_item_tag"
+              sequence="20"/>
+
+    <menuitem id="menu_pg_property_template"
+              name="Property Templates"
+              parent="menu_pg_config"
+              action="action_pg_property_template"
+              sequence="30"/>
+
+</odoo>
