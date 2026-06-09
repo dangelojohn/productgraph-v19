@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_pg_revision"
+              name="Revisions"
+              parent="product_graph_base.menu_pg_engineering"
+              action="action_pg_revision"
+              sequence="20"/>
+
+    <menuitem id="menu_pg_document"
+              name="Documents"
+              parent="product_graph_base.menu_pg_engineering"
+              action="action_pg_document"
+              sequence="30"/>
+
+</odoo>

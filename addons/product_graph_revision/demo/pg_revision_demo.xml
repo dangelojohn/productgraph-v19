@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <record id="demo_rev_base_cabinet_A" model="pg.revision">
+            <field name="item_id" ref="product_graph_base.demo_item_base_cabinet"/>
+            <field name="name">A</field>
+            <field name="change_summary">Initial release — 600mm base cabinet, standard width.</field>
+            <field name="sequence">10</field>
+        </record>
+
+        <record id="demo_propval_width" model="pg.property.value">
+            <field name="revision_id" ref="demo_rev_base_cabinet_A"/>
+            <field name="field_id" ref="product_graph_base.prop_fld_cabinet_width"/>
+            <field name="value_integer">600</field>
+        </record>
+        <record id="demo_propval_height" model="pg.property.value">
+            <field name="revision_id" ref="demo_rev_base_cabinet_A"/>
+            <field name="field_id" ref="product_graph_base.prop_fld_cabinet_height"/>
+            <field name="value_integer">870</field>
+        </record>
+        <record id="demo_propval_depth" model="pg.property.value">
+            <field name="revision_id" ref="demo_rev_base_cabinet_A"/>
+            <field name="field_id" ref="product_graph_base.prop_fld_cabinet_depth"/>
+            <field name="value_integer">580</field>
+        </record>
+        <record id="demo_propval_material" model="pg.property.value">
+            <field name="revision_id" ref="demo_rev_base_cabinet_A"/>
+            <field name="field_id" ref="product_graph_base.prop_fld_cabinet_material"/>
+            <field name="value_selection">Plywood</field>
+        </record>
+
+        <record id="demo_rev_hinge_A" model="pg.revision">
+            <field name="item_id" ref="product_graph_base.demo_item_soft_close_hinge"/>
+            <field name="name">A</field>
+            <field name="change_summary">Initial release — concealed soft-close hinge, vendor A.</field>
+            <field name="sequence">10</field>
+        </record>
+
+        <record id="demo_propval_hinge_mpn" model="pg.property.value">
+            <field name="revision_id" ref="demo_rev_hinge_A"/>
+            <field name="field_id" ref="product_graph_base.prop_fld_mpn"/>
+            <field name="value_char">HNG-SC-9035</field>
+        </record>
+        <record id="demo_propval_hinge_lead" model="pg.property.value">
+            <field name="revision_id" ref="demo_rev_hinge_A"/>
+            <field name="field_id" ref="product_graph_base.prop_fld_lead_time"/>
+            <field name="value_integer">21</field>
+        </record>
+
+    </data>
+</odoo>

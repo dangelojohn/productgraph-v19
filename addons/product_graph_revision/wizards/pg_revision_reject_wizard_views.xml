@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_revision_reject_wizard_form" model="ir.ui.view">
+        <field name="name">pg.revision.reject.wizard.form</field>
+        <field name="model">pg.revision.reject.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reject Revision">
+                <group>
+                    <field name="revision_id" readonly="1"/>
+                </group>
+                <group>
+                    <field name="reason"
+                           placeholder="Why is this revision being rejected? (min 5 chars)"/>
+                </group>
+                <footer>
+                    <button name="action_reject" string="Reject"
+                            type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ─── List ────────────────────────────────────────────────────────── -->
+    <record id="view_pg_revision_list" model="ir.ui.view">
+        <field name="name">pg.revision.list</field>
+        <field name="model">pg.revision</field>
+        <field name="arch" type="xml">
+            <list decoration-info="state == 'review'"
+                  decoration-success="state == 'released'"
+                  decoration-muted="state in ('superseded','obsolete')">
+                <field name="item_id"/>
+                <field name="name" string="Rev"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'review'"
+                       decoration-success="state == 'released'"
+                       decoration-muted="state in ('superseded','obsolete')"/>
+                <field name="released_by_id"/>
+                <field name="effective_date"/>
+                <field name="incompatible_with_previous" widget="boolean_toggle" optional="hide"/>
+                <field name="successor_revision_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ─── Form ────────────────────────────────────────────────────────── -->
+    <record id="view_pg_revision_form" model="ir.ui.view">
+        <field name="name">pg.revision.form</field>
+        <field name="model">pg.revision</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit_for_review" string="Submit for Review"
+                            type="object" class="oe_highlight"
+                            invisible="state != 'draft'"
+                            groups="product_graph_base.group_pg_engineer"/>
+                    <button name="action_release" string="Release"
+                            type="object" class="oe_highlight"
+                            invisible="state != 'review'"
+                            confirm="Release this revision? This is irreversible — the revision becomes immutable."
+                            groups="product_graph_base.group_pg_approver"/>
+                    <button name="action_reject_to_draft" string="Reject"
+                            type="object"
+                            invisible="state != 'review'"
+                            groups="product_graph_base.group_pg_approver"/>
+                    <button name="action_supersede" string="Supersede"
+                            type="object"
+                            invisible="state != 'released'"
+                            groups="product_graph_base.group_pg_approver"/>
+                    <button name="action_obsolete" string="Obsolete"
+                            type="object"
+                            confirm="Obsolete this revision permanently?"
+                            invisible="state == 'obsolete'"
+                            groups="product_graph_base.group_pg_admin"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,review,released,superseded"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_documents" type="object"
+                                class="oe_stat_button" icon="fa-file-text-o">
+                            <field name="document_count" widget="statinfo" string="Documents"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="display_name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="item_id" readonly="state != 'draft'"/>
+                            <field name="name" string="Revision Code" readonly="state != 'draft'"/>
+                            <field name="sequence" readonly="state != 'draft'" optional="hide"/>
+                            <field name="predecessor_revision_id" readonly="state != 'draft'"/>
+                        </group>
+                        <group>
+                            <field name="effective_date" readonly="1"
+                                   invisible="state == 'draft'"/>
+                            <field name="released_by_id" readonly="1"
+                                   invisible="state in ('draft','review')"/>
+                            <field name="release_timestamp" readonly="1"
+                                   invisible="state in ('draft','review')"/>
+                            <field name="successor_revision_id"
+                                   readonly="state != 'released'"
+                                   invisible="state != 'released'"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="change_summary"
+                               placeholder="What changed from the previous revision? (min 10 chars)"
+                               readonly="state not in ('draft','review')"/>
+                    </group>
+                    <group string="Compatibility (Manufacturing Governance §3)"
+                           name="compatibility">
+                        <group>
+                            <field name="incompatible_with_previous"
+                                   widget="boolean_toggle"
+                                   readonly="state not in ('draft','review')"/>
+                        </group>
+                        <group>
+                            <field name="incompatibility_reason"
+                                   placeholder="Required if marked incompatible…"
+                                   invisible="not incompatible_with_previous"
+                                   readonly="state not in ('draft','review')"/>
+                        </group>
+                    </group>
+                    <group string="Rejection" invisible="not rejection_reason"
+                           groups="product_graph_base.group_pg_engineer">
+                        <field name="rejection_reason" readonly="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Properties" name="page_properties">
+                            <field name="property_value_ids">
+                                <list editable="bottom">
+                                    <field name="field_id"
+                                           options="{'no_create_edit': True}"/>
+                                    <field name="field_label" optional="hide"/>
+                                    <field name="field_type"/>
+                                    <field name="value_char"
+                                           column_invisible="parent.field_type != 'char'"/>
+                                    <field name="value_integer"
+                                           column_invisible="parent.field_type != 'integer'"/>
+                                    <field name="value_float"
+                                           column_invisible="parent.field_type != 'float'"/>
+                                    <field name="value_boolean" widget="boolean_toggle"
+                                           column_invisible="parent.field_type != 'boolean'"/>
+                                    <field name="value_date"
+                                           column_invisible="parent.field_type != 'date'"/>
+                                    <field name="value_selection"
+                                           column_invisible="parent.field_type != 'selection'"/>
+                                    <field name="field_uom_id" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Documents" name="page_documents">
+                            <field name="document_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="document_type"/>
+                                    <field name="version_label"/>
+                                    <field name="file_data" widget="binary" filename="file_name"/>
+                                    <field name="file_name" optional="hide"/>
+                                    <field name="uploaded_by_id" optional="hide"/>
+                                    <field name="uploaded_at" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Description" name="page_description">
+                            <field name="description"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ─── Search ──────────────────────────────────────────────────────── -->
+    <record id="view_pg_revision_search" model="ir.ui.view">
+        <field name="name">pg.revision.search</field>
+        <field name="model">pg.revision</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name" string="Revision"/>
+                <field name="item_id"/>
+                <field name="released_by_id"/>
+                <filter string="Draft" name="state_draft" domain="[('state','=','draft')]"/>
+                <filter string="Under Review" name="state_review" domain="[('state','=','review')]"/>
+                <filter string="Released" name="state_released" domain="[('state','=','released')]"/>
+                <filter string="Superseded" name="state_superseded" domain="[('state','=','superseded')]"/>
+                <separator/>
+                <filter string="Incompatible" name="incompat" domain="[('incompatible_with_previous','=',True)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Item" name="grp_item" context="{'group_by':'item_id'}"/>
+                    <filter string="State" name="grp_state" context="{'group_by':'state'}"/>
+                    <filter string="Released By" name="grp_released_by" context="{'group_by':'released_by_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pg_revision" model="ir.actions.act_window">
+        <field name="name">Revisions</field>
+        <field name="res_model">pg.revision</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ─── Embed revisions list on pg.item form ────────────────────────── -->
+    <record id="view_pg_item_form_inherit_revision" model="ir.ui.view">
+        <field name="name">pg.item.form.inherit.revision</field>
+        <field name="model">pg.item</field>
+        <field name="inherit_id" ref="product_graph_base.view_pg_item_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook/page[@name='page_properties']" position="after">
+                <page string="Revisions" name="page_revisions">
+                    <field name="revision_ids" context="{'default_item_id': id}">
+                        <list>
+                            <field name="name" string="Rev"/>
+                            <field name="state" widget="badge"/>
+                            <field name="effective_date"/>
+                            <field name="released_by_id"/>
+                            <field name="change_summary" optional="hide"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button name="action_create_revision" string="New Revision"
+                        type="object"
+                        invisible="state not in ('prototype','engineering','released')"
+                        groups="product_graph_base.group_pg_engineer"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

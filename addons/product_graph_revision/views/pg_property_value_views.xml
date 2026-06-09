@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- pg.property.value is primarily edited inline on pg.revision form.
+         A standalone list view supports the configuration menu and the API. -->
+
+    <record id="view_pg_property_value_list" model="ir.ui.view">
+        <field name="name">pg.property.value.list</field>
+        <field name="model">pg.property.value</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="revision_id"/>
+                <field name="field_label"/>
+                <field name="field_type"/>
+                <field name="display_value"/>
+                <field name="field_uom_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+</odoo>

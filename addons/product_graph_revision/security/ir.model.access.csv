@@ -1,0 +1,17 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+# ─── pg.revision ──────────────────────────────────────────────────────────────
+access_pg_revision_viewer,pg.revision viewer,model_pg_revision,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_revision_user,pg.revision user,model_pg_revision,product_graph_base.group_pg_user,1,0,0,0
+access_pg_revision_engineer,pg.revision engineer,model_pg_revision,product_graph_base.group_pg_engineer,1,1,1,0
+access_pg_revision_admin,pg.revision admin,model_pg_revision,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.property.value ────────────────────────────────────────────────────────
+access_pg_property_value_viewer,pg.property.value viewer,model_pg_property_value,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_property_value_engineer,pg.property.value engineer,model_pg_property_value,product_graph_base.group_pg_engineer,1,1,1,1
+access_pg_property_value_admin,pg.property.value admin,model_pg_property_value,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.document ──────────────────────────────────────────────────────────────
+access_pg_document_viewer,pg.document viewer,model_pg_document,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_document_engineer,pg.document engineer,model_pg_document,product_graph_base.group_pg_engineer,1,1,1,1
+access_pg_document_admin,pg.document admin,model_pg_document,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.revision.reject.wizard ────────────────────────────────────────────────
+access_pg_rev_reject_wiz_engineer,pg.revision.reject.wizard engineer,model_pg_revision_reject_wizard,product_graph_base.group_pg_approver,1,1,1,1
+access_pg_rev_reject_wiz_admin,pg.revision.reject.wizard admin,model_pg_revision_reject_wizard,product_graph_base.group_pg_admin,1,1,1,1
