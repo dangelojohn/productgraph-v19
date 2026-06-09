@@ -358,7 +358,6 @@ class PgRelease(models.Model):
             'type': 'consu',
             'default_code': item.part_number,
             'uom_id': item.uom_id.id,
-            'uom_po_id': item.uom_id.id,
             'description': f'ProductGraph item {item.part_number}',
         }
         if item.image_1920:
