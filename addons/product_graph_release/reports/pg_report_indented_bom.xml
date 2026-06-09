@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_report_pg_indented_bom" model="ir.actions.report">
+        <field name="name">Indented BOM</field>
+        <field name="model">pg.ebom</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">product_graph_release.report_pg_indented_bom</field>
+        <field name="report_file">product_graph_release.report_pg_indented_bom</field>
+        <field name="binding_model_id" ref="product_graph_ebom.model_pg_ebom"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_pg_indented_bom">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="ebom">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2>Indented BOM — <span t-field="ebom.display_name"/></h2>
+                        <p>
+                            <strong>Root Item:</strong> <span t-field="ebom.root_item_id.display_name"/><br/>
+                            <strong>Revision:</strong> <span t-field="ebom.revision_id.name"/><br/>
+                            <strong>State:</strong> <span t-field="ebom.state"/><br/>
+                            <strong>Effective Date:</strong> <span t-field="ebom.effective_date"/>
+                        </p>
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Depth</th>
+                                    <th>Ancestor</th>
+                                    <th>Descendant Part #</th>
+                                    <th>Descendant Name</th>
+                                    <th class="text-end">Chained Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-set="closure"
+                                   t-value="request.env['pg.ebom.closure'].search([('ebom_id','=',ebom.id)], order='depth asc, descendant_id')"/>
+                                <t t-foreach="closure" t-as="row">
+                                    <tr>
+                                        <td t-esc="row.depth"/>
+                                        <td><span t-field="row.ancestor_id.display_name"/></td>
+                                        <td><span t-field="row.descendant_id.part_number"/></td>
+                                        <td><span t-field="row.descendant_id.name"/></td>
+                                        <td class="text-end"><span t-esc="'%g' % row.qty_chain"/></td>
+                                    </tr>
+                                </t>
+                                <t t-if="not closure">
+                                    <tr><td colspan="5" class="text-muted">
+                                        Closure is empty. Either the EBOM is not yet
+                                        released, or it has no child lines.
+                                    </td></tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

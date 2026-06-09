@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_report_pg_where_used" model="ir.actions.report">
+        <field name="name">Where Used</field>
+        <field name="model">pg.item</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">product_graph_release.report_pg_where_used</field>
+        <field name="report_file">product_graph_release.report_pg_where_used</field>
+        <field name="binding_model_id" ref="product_graph_base.model_pg_item"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_pg_where_used">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="item">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2>Where Used — <span t-field="item.display_name"/></h2>
+                        <p>
+                            <strong>Item Type:</strong> <span t-field="item.item_type"/><br/>
+                            <strong>Category:</strong> <span t-field="item.category_id.complete_name"/><br/>
+                            <strong>State:</strong> <span t-field="item.state"/>
+                        </p>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>EBOM</th>
+                                    <th>Parent Assembly</th>
+                                    <th>Depth</th>
+                                    <th class="text-end">Chained Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-set="rows"
+                                   t-value="request.env['pg.ebom.closure'].search([('descendant_id','=',item.id)], order='ancestor_id, depth')"/>
+                                <t t-foreach="rows" t-as="row">
+                                    <tr>
+                                        <td><span t-field="row.ebom_id.name"/></td>
+                                        <td><span t-field="row.ancestor_id.display_name"/></td>
+                                        <td t-esc="row.depth"/>
+                                        <td class="text-end"><span t-esc="'%g' % row.qty_chain"/></td>
+                                    </tr>
+                                </t>
+                                <t t-if="not rows">
+                                    <tr><td colspan="4" class="text-muted">
+                                        Not used in any released EBOM.
+                                    </td></tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

@@ -1,0 +1,14 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+# ─── pg.release ───────────────────────────────────────────────────────────────
+access_pg_release_viewer,pg.release viewer,model_pg_release,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_release_user,pg.release user,model_pg_release,product_graph_base.group_pg_user,1,0,0,0
+access_pg_release_mfg,pg.release mfg,model_pg_release,product_graph_base.group_pg_mfg,1,0,0,0
+access_pg_release_approver,pg.release approver,model_pg_release,product_graph_base.group_pg_approver,1,1,1,0
+access_pg_release_admin,pg.release admin,model_pg_release,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.release.line ──────────────────────────────────────────────────────────
+access_pg_release_line_viewer,pg.release.line viewer,model_pg_release_line,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_release_line_approver,pg.release.line approver,model_pg_release_line,product_graph_base.group_pg_approver,1,1,1,0
+access_pg_release_line_admin,pg.release.line admin,model_pg_release_line,product_graph_base.group_pg_admin,1,1,1,1
+# ─── pg.release.wizard ────────────────────────────────────────────────────────
+access_pg_release_wizard_approver,pg.release.wizard approver,model_pg_release_wizard,product_graph_base.group_pg_approver,1,1,1,1
+access_pg_release_wizard_admin,pg.release.wizard admin,model_pg_release_wizard,product_graph_base.group_pg_admin,1,1,1,1

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_pg_release_root"
+              name="Release"
+              parent="product_graph_base.menu_pg_root"
+              sequence="20"/>
+
+    <menuitem id="menu_pg_release"
+              name="Releases"
+              parent="menu_pg_release_root"
+              action="action_pg_release"
+              sequence="10"/>
+
+</odoo>

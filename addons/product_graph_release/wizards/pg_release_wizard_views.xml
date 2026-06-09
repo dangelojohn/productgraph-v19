@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_release_wizard_form" model="ir.ui.view">
+        <field name="name">pg.release.wizard.form</field>
+        <field name="model">pg.release.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Release to MRP">
+                <group>
+                    <group>
+                        <field name="ebom_id" readonly="1"
+                               options="{'no_create_edit': True}"/>
+                        <field name="root_item_id" readonly="1"/>
+                        <field name="revision_id" readonly="1"/>
+                        <field name="bom_line_count"/>
+                    </group>
+                    <group>
+                        <field name="effective_date"/>
+                        <field name="archive_previous_bom"/>
+                        <field name="create_product_if_missing"/>
+                        <field name="incompatible_with_previous" readonly="1"/>
+                    </group>
+                </group>
+                <separator string="Pre-Flight Validation"/>
+                <field name="validation_html" nolabel="1"/>
+                <field name="has_blocking" invisible="1"/>
+                <separator string="Reason"/>
+                <group>
+                    <field name="release_reason" nolabel="1"
+                           placeholder="Why is this release happening? (audit trail — min 5 chars)"/>
+                </group>
+                <footer>
+                    <button name="action_confirm_release"
+                            string="Confirm &amp; Execute Release"
+                            type="object" class="btn-primary"
+                            invisible="has_blocking"
+                            confirm="Execute the release? This creates mrp.bom and is irreversible."/>
+                    <span class="text-danger ms-2" invisible="not has_blocking">
+                        Resolve blocking issues before releasing.
+                    </span>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_report_pg_release_audit" model="ir.actions.report">
+        <field name="name">Release Audit Trail</field>
+        <field name="model">pg.release</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">product_graph_release.report_pg_release_audit</field>
+        <field name="report_file">product_graph_release.report_pg_release_audit</field>
+        <field name="binding_model_id" ref="model_pg_release"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_pg_release_audit">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="release">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2>Release Audit Trail — <span t-field="release.name"/></h2>
+                        <table class="table table-sm">
+                            <tr><th>EBOM</th><td><span t-field="release.ebom_id.display_name"/></td></tr>
+                            <tr><th>Root Item</th><td><span t-field="release.root_item_id.display_name"/></td></tr>
+                            <tr><th>Revision</th><td><span t-field="release.revision_id.name"/></td></tr>
+                            <tr><th>State</th><td><span t-field="release.state"/></td></tr>
+                            <tr><th>Released By</th><td><span t-field="release.released_by_id.name"/></td></tr>
+                            <tr><th>Released At</th><td><span t-field="release.release_timestamp"/></td></tr>
+                            <tr><th>Effective Date</th><td><span t-field="release.effective_date"/></td></tr>
+                            <tr><th>Generated mrp.bom</th><td><span t-field="release.mrp_bom_id.display_name"/></td></tr>
+                            <tr><th>Frozen MOs</th><td><span t-field="release.frozen_mo_count"/></td></tr>
+                            <tr><th>Reason</th><td><span t-field="release.release_reason"/></td></tr>
+                        </table>
+                        <h4>Release Lines</h4>
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Part #</th>
+                                    <th>Item</th>
+                                    <th>Product</th>
+                                    <th class="text-end">Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="release.line_ids" t-as="line">
+                                    <tr>
+                                        <td><span t-field="line.pg_item_id.part_number"/></td>
+                                        <td><span t-field="line.pg_item_id.name"/></td>
+                                        <td><span t-field="line.product_id.display_name"/></td>
+                                        <td class="text-end"><span t-esc="'%g' % line.product_qty"/></td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                        <t t-if="release.frozen_mo_ids">
+                            <h4>Frozen Manufacturing Orders (MG-1)</h4>
+                            <table class="table table-sm">
+                                <thead><tr><th>MO</th><th>State</th><th>Product</th></tr></thead>
+                                <tbody>
+                                    <t t-foreach="release.frozen_mo_ids" t-as="mo">
+                                        <tr>
+                                            <td><span t-field="mo.name"/></td>
+                                            <td><span t-field="mo.state"/></td>
+                                            <td><span t-field="mo.product_id.display_name"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </t>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

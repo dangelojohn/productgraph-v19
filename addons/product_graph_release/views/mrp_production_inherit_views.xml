@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Add PG traceability fields to mrp.production form -->
+    <record id="view_mrp_production_form_pg" model="ir.ui.view">
+        <field name="name">mrp.production.form.pg</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='bom_id']" position="after">
+                <field name="pg_release_id" readonly="1"
+                       invisible="not pg_release_id"
+                       groups="product_graph_base.group_pg_viewer"/>
+                <field name="pg_revision_code" readonly="1"
+                       invisible="not pg_revision_code"
+                       groups="product_graph_base.group_pg_viewer"/>
+                <field name="pg_ebom_id" readonly="1"
+                       invisible="not pg_ebom_id"
+                       groups="product_graph_base.group_pg_viewer"/>
+                <field name="pg_item_id" readonly="1"
+                       invisible="not pg_item_id"
+                       groups="base.group_no_one"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add PG traceability column on MO list -->
+    <record id="view_mrp_production_list_pg" model="ir.ui.view">
+        <field name="name">mrp.production.list.pg</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='bom_id']" position="after">
+                <field name="pg_revision_code" string="Eng Rev" optional="show"
+                       groups="product_graph_base.group_pg_viewer"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

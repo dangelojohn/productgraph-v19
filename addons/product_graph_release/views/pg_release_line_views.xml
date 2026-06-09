@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_release_line_list" model="ir.ui.view">
+        <field name="name">pg.release.line.list</field>
+        <field name="model">pg.release.line</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="release_id"/>
+                <field name="pg_item_id"/>
+                <field name="product_id"/>
+                <field name="product_qty"/>
+                <field name="mrp_bom_line_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_pg_release_line" model="ir.actions.act_window">
+        <field name="name">Release Lines</field>
+        <field name="res_model">pg.release.line</field>
+        <field name="view_mode">list</field>
+    </record>
+
+</odoo>

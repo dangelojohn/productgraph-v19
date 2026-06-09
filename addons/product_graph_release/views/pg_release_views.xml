@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_release_list" model="ir.ui.view">
+        <field name="name">pg.release.list</field>
+        <field name="model">pg.release</field>
+        <field name="arch" type="xml">
+            <list decoration-info="state == 'pending'"
+                  decoration-warning="state == 'executing'"
+                  decoration-success="state == 'completed'"
+                  decoration-danger="state == 'failed'">
+                <field name="name"/>
+                <field name="ebom_id"/>
+                <field name="root_item_id"/>
+                <field name="revision_id"/>
+                <field name="state" widget="badge"/>
+                <field name="release_timestamp"/>
+                <field name="released_by_id"/>
+                <field name="frozen_mo_count" string="# Frozen MOs"/>
+                <field name="mrp_bom_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_release_form" model="ir.ui.view">
+        <field name="name">pg.release.form</field>
+        <field name="model">pg.release</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_execute_release" string="Execute Release"
+                            type="object" class="oe_highlight"
+                            confirm="Execute this release? This will create mrp.bom and is irreversible."
+                            invisible="state != 'pending'"
+                            groups="product_graph_base.group_pg_approver"/>
+                    <button name="action_reset_to_pending" string="Reset to Pending"
+                            type="object"
+                            invisible="state != 'failed'"
+                            groups="product_graph_base.group_pg_approver"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="pending,executing,completed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_mrp_bom" type="object"
+                                class="oe_stat_button" icon="fa-cubes"
+                                invisible="not mrp_bom_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">MRP BOM</span>
+                            </div>
+                        </button>
+                        <button name="action_view_frozen_mos" type="object"
+                                class="oe_stat_button" icon="fa-snowflake-o"
+                                invisible="frozen_mo_count == 0">
+                            <field name="frozen_mo_count" widget="statinfo" string="Frozen MOs"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="ebom_id" readonly="state != 'pending'"
+                                   options="{'no_create_edit': True}"/>
+                            <field name="root_item_id" readonly="1"/>
+                            <field name="revision_id" readonly="1"/>
+                            <field name="effective_date" readonly="state != 'pending'"/>
+                        </group>
+                        <group>
+                            <field name="mrp_bom_id" readonly="1"/>
+                            <field name="product_id" readonly="1"/>
+                            <field name="release_timestamp" readonly="1"/>
+                            <field name="released_by_id" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Options" invisible="state != 'pending'">
+                        <field name="archive_previous_bom"/>
+                        <field name="create_product_if_missing"/>
+                    </group>
+                    <group string="Reason">
+                        <field name="release_reason"
+                               placeholder="Why is this release happening? (audit trail)"
+                               readonly="state != 'pending'"/>
+                    </group>
+                    <group string="Failure" invisible="state != 'failed'">
+                        <field name="failure_reason" readonly="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Release Lines" name="page_lines">
+                            <field name="line_ids" readonly="1">
+                                <list>
+                                    <field name="sequence"/>
+                                    <field name="pg_item_id"/>
+                                    <field name="product_id"/>
+                                    <field name="product_qty"/>
+                                    <field name="mrp_bom_line_id"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Frozen MOs (MG-1)" name="page_frozen_mos"
+                              invisible="frozen_mo_count == 0">
+                            <field name="frozen_mo_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="product_id"/>
+                                    <field name="product_qty"/>
+                                    <field name="state" widget="badge"/>
+                                    <field name="date_planned_start"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_pg_release_search" model="ir.ui.view">
+        <field name="name">pg.release.search</field>
+        <field name="model">pg.release</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="ebom_id"/>
+                <field name="root_item_id"/>
+                <field name="released_by_id"/>
+                <filter string="Pending" name="state_pending" domain="[('state','=','pending')]"/>
+                <filter string="Completed" name="state_completed" domain="[('state','=','completed')]"/>
+                <filter string="Failed" name="state_failed" domain="[('state','=','failed')]"/>
+                <filter string="With Frozen MOs" name="frozen" domain="[('frozen_mo_count','>',0)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="State" name="grp_state" context="{'group_by':'state'}"/>
+                    <filter string="Root Item" name="grp_root" context="{'group_by':'root_item_id'}"/>
+                    <filter string="Released By" name="grp_user" context="{'group_by':'released_by_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pg_release" model="ir.actions.act_window">
+        <field name="name">Releases</field>
+        <field name="res_model">pg.release</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ─── Add "Release to MRP" smart button on pg.ebom form ──────────── -->
+    <record id="view_pg_ebom_form_inherit_release" model="ir.ui.view">
+        <field name="name">pg.ebom.form.inherit.release</field>
+        <field name="model">pg.ebom</field>
+        <field name="inherit_id" ref="product_graph_ebom.view_pg_ebom_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_open_release_wizard" string="Release to MRP"
+                        type="object" class="oe_highlight"
+                        invisible="state != 'released'"
+                        groups="product_graph_base.group_pg_approver"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="%(action_pg_release)d" type="action"
+                        class="oe_stat_button" icon="fa-paper-plane"
+                        context="{'search_default_ebom_id': active_id}">
+                    <field name="release_count" widget="statinfo" string="Releases"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
