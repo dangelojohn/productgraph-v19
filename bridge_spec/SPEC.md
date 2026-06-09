@@ -1,9 +1,18 @@
-# product_graph_southbrook — Bridge Addon Spec
+# southbrook_plm_productgraph — Bridge Addon Spec
 
-> **This is a spec.** The actual addon should live in the Southbrook private
-> repository (e.g. `~/southbrook-v19cr/product_graph_southbrook/`), not in
-> the public `product_graph_v19` repo. A working skeleton lives at
-> `bridge_spec/product_graph_southbrook/` for reference — move it.
+> **This is a spec.** The actual addon is deployed to the QNAP southbrook
+> stack as `southbrook_plm_productgraph` (note the flipped naming — sorts
+> alongside other `southbrook_*` addons in the addons dir) and tracked
+> in the `qnap/southbrook` Forgejo repo, NOT in the public
+> `product_graph_v19` repo. Source of truth:
+>
+> - Disk: `/share/CACHEDEV3_DATA/Container/southbrook/addons/southbrook_plm_productgraph/`
+> - Git: `https://southbrookcabinetry.local:9444/git/qnap/southbrook` →
+>   `addons/southbrook_plm_productgraph/` (from commit `8ee36fe` onward).
+>
+> This file documents the interface contract — what the bridge IS and
+> ISN'T allowed to do — so any future re-implementation stays compliant
+> with Decision D1.
 
 ## Purpose (Decision D1)
 
