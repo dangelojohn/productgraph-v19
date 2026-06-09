@@ -1,0 +1,24 @@
+# Drop-in snippet for the QNAP alfacore-caddy stack. Add to the existing
+# stack's docker-compose.yml as a new service.
+version: "3.8"
+
+services:
+  product-graph-mcp:
+    image: product-graph-mcp:0.1.0
+    container_name: product-graph-mcp
+    restart: unless-stopped
+    env_file: ./.env
+    networks:
+      - alfacore-caddy
+    # SSE listens on 9234; expose internally only, route via cloudflared.
+    expose:
+      - "9234"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9234/sse').close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  alfacore-caddy:
+    external: true
