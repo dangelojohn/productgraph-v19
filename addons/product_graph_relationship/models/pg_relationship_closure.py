@@ -96,22 +96,30 @@ class PgRelationshipClosure(models.Model):
     # Rebuild
     # ──────────────────────────────────────────────────────────────────
     @api.model
-    def _rebuild_kind(self, kind: str, max_depth: int = 30) -> int:
+    def _rebuild_kind(self, kind: str, max_depth: int = 200) -> int:
         """Rebuild the closure rows for a single kind.
 
         Returns the row count. Wipes existing rows for the kind first
         so the operation is idempotent.
         """
         Rel = self.env['pg.relationship']
-        edges = Rel.search([('kind', '=', kind), ('active', '=', True)])
+        # Read raw edge tuples in one query instead of touching each
+        # recordset field — for big graphs this matters.
+        edge_rows = Rel.search_read(
+            [('kind', '=', kind), ('active', '=', True)],
+            ['source_item_id', 'target_item_id'],
+        )
 
         # Adjacency: source -> {targets}. For symmetric kinds, also add the
         # reverse so the BFS walks both directions naturally.
         adj: dict[int, set[int]] = defaultdict(set)
-        for edge in edges:
-            adj[edge.source_item_id.id].add(edge.target_item_id.id)
+        for row in edge_rows:
+            # search_read returns the M2O as [id, name]; index 0 is the id.
+            src = row['source_item_id'][0] if isinstance(row['source_item_id'], list) else row['source_item_id']
+            tgt = row['target_item_id'][0] if isinstance(row['target_item_id'], list) else row['target_item_id']
+            adj[src].add(tgt)
             if kind in SYMMETRIC_KINDS:
-                adj[edge.target_item_id.id].add(edge.source_item_id.id)
+                adj[tgt].add(src)
 
         # BFS from every node that has outgoing edges. Closure semantics:
         # (source, target, depth) where depth is the shortest hop count.
@@ -139,10 +147,29 @@ class PgRelationshipClosure(models.Model):
                     'depth': depth,
                 })
 
-        # Wipe stale rows and write fresh.
-        self.search([('kind', '=', kind)]).unlink()
+        # Wipe stale rows and write fresh. Use raw SQL for both steps —
+        # the closure table has no compute / tracking and is internal-
+        # only (rebuilt deterministically), so going through the ORM
+        # buys nothing and costs O(rows) time for chatter / cache work.
+        cr = self.env.cr
+        cr.execute(
+            "DELETE FROM pg_relationship_closure WHERE kind = %s",
+            (kind,),
+        )
         if rows:
-            self.create(rows)
+            user_id = self.env.user.id or 1
+            # psycopg2 execute_values would be ideal; the cursor wrapper
+            # supports executemany so we batch through that.
+            cr.executemany(
+                "INSERT INTO pg_relationship_closure "
+                "(source_item_id, target_item_id, kind, depth, "
+                " create_uid, write_uid, create_date, write_date) "
+                "VALUES (%(source_item_id)s, %(target_item_id)s, "
+                " %(kind)s, %(depth)s, "
+                f" {user_id}, {user_id}, NOW(), NOW())",
+                rows,
+            )
+            self.env.invalidate_all()
             _logger.info(
                 'pg.relationship.closure: rebuilt %d rows for kind=%s',
                 len(rows), kind,

@@ -108,7 +108,8 @@ class PgRelationship(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         recs = super().create(vals_list)
-        self._rebuild_closure_for_kinds(set(recs.mapped('kind')))
+        if not self.env.context.get('_pg_relationship_skip_closure'):
+            self._rebuild_closure_for_kinds(set(recs.mapped('kind')))
         return recs
 
     def write(self, vals):
@@ -118,13 +119,15 @@ class PgRelationship(models.Model):
         # If the kind itself was changed, both old and new need rebuilding.
         if 'kind' in vals or 'source_item_id' in vals \
                 or 'target_item_id' in vals or 'active' in vals:
-            self._rebuild_closure_for_kinds(before | after)
+            if not self.env.context.get('_pg_relationship_skip_closure'):
+                self._rebuild_closure_for_kinds(before | after)
         return result
 
     def unlink(self):
         kinds = set(self.mapped('kind'))
         result = super().unlink()
-        self._rebuild_closure_for_kinds(kinds)
+        if not self.env.context.get('_pg_relationship_skip_closure'):
+            self._rebuild_closure_for_kinds(kinds)
         return result
 
     @api.model
