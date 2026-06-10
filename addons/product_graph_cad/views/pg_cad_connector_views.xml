@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_cad_connector_list" model="ir.ui.view">
+        <field name="name">pg.cad.connector.list</field>
+        <field name="model">pg.cad.connector</field>
+        <field name="arch" type="xml">
+            <list decoration-success="last_sync_status == 'ok'"
+                  decoration-danger="last_sync_status == 'failed'"
+                  decoration-muted="state == 'inactive'">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="driver_code"/>
+                <field name="state" widget="badge"/>
+                <field name="last_sync_at"/>
+                <field name="last_sync_status" widget="badge"/>
+                <field name="import_count" string="# Pulls"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_cad_connector_form" model="ir.ui.view">
+        <field name="name">pg.cad.connector.form</field>
+        <field name="model">pg.cad.connector</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_test_connection" string="Test Connection"
+                            type="object" class="btn-secondary"
+                            groups="product_graph_base.group_pg_engineer"/>
+                    <button name="action_pull" string="Pull Now"
+                            type="object" class="oe_highlight"
+                            invisible="state != 'active'"
+                            groups="product_graph_base.group_pg_engineer"
+                            confirm="Pull every document from this connector and create / update items + revisions + EBOMs?"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name" placeholder="Connector name..."/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="driver_code"/>
+                            <field name="create_revision"/>
+                            <field name="create_ebom"/>
+                        </group>
+                        <group>
+                            <field name="last_sync_at" readonly="1"/>
+                            <field name="last_sync_status" readonly="1"/>
+                            <field name="import_count" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Driver Config" name="config">
+                            <field name="config_json" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                        <page string="Last Sync Detail" name="last_sync"
+                              invisible="not last_sync_detail">
+                            <field name="last_sync_detail" readonly="1"/>
+                        </page>
+                        <page string="Imports" name="imports">
+                            <field name="import_ids" readonly="1">
+                                <list>
+                                    <field name="create_date"/>
+                                    <field name="state" widget="badge"
+                                           decoration-success="state == 'completed'"
+                                           decoration-danger="state == 'failed'"
+                                           decoration-info="state == 'running'"/>
+                                    <field name="started_at"/>
+                                    <field name="completed_at"/>
+                                    <field name="line_count"/>
+                                    <field name="created_count"/>
+                                    <field name="updated_count"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_pg_cad_connector" model="ir.actions.act_window">
+        <field name="name">CAD Connectors</field>
+        <field name="res_model">pg.cad.connector</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>
