@@ -208,6 +208,41 @@ class PgEco(models.Model):
             from_state=from_state, to_state=to_state,
             notes=reason or None,
         )
+        # Bible §7.3 transition notifications.
+        self._send_transition_email(to_state)
+
+    # Map state machine target → mail.template external ID. Transitions
+    # that don't have a template (draft / analysis / cancelled) just skip.
+    _TRANSITION_TEMPLATES = {
+        'approval':       'product_graph_eco.mail_template_eco_submitted',
+        'implementation': 'product_graph_eco.mail_template_eco_approved',
+        'released':       'product_graph_eco.mail_template_eco_released',
+        'rejected':       'product_graph_eco.mail_template_eco_rejected',
+    }
+
+    def _send_transition_email(self, to_state):
+        """Send the Bible §7.3 notification for this transition.
+
+        Resolves the mail.template by XML id, calls send_mail on each
+        record in self. Quietly skips when the target state has no
+        template configured (e.g. analysis, draft).
+        """
+        xmlid = self._TRANSITION_TEMPLATES.get(to_state)
+        if not xmlid:
+            return
+        template = self.env.ref(xmlid, raise_if_not_found=False)
+        if not template:
+            return
+        for rec in self:
+            try:
+                # force_send=False: queue for the outgoing-mail worker so a
+                # broken SMTP doesn't poison the state-machine transaction.
+                template.send_mail(rec.id, force_send=False)
+            except Exception:  # noqa: BLE001
+                _logger.exception(
+                    "ECO %s: failed to queue transition email for %s",
+                    rec.display_name, to_state,
+                )
 
     def action_start_analysis(self):
         for rec in self:
