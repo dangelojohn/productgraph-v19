@@ -1,0 +1,8 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pg_eco_viewer,pg.eco viewer read,model_pg_eco,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_eco_engineer,pg.eco engineer rw,model_pg_eco,product_graph_base.group_pg_engineer,1,1,1,0
+access_pg_eco_admin,pg.eco admin full,model_pg_eco,product_graph_base.group_pg_admin,1,1,1,1
+access_pg_eco_line_viewer,pg.eco.line viewer read,model_pg_eco_line,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_eco_line_engineer,pg.eco.line engineer rw,model_pg_eco_line,product_graph_base.group_pg_engineer,1,1,1,1
+access_pg_eco_approval_viewer,pg.eco.approval viewer read,model_pg_eco_approval,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_eco_approval_approver,pg.eco.approval approver create,model_pg_eco_approval,product_graph_base.group_pg_approver,1,0,1,0

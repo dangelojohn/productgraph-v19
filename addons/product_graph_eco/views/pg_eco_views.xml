@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_eco_list" model="ir.ui.view">
+        <field name="name">pg.eco.list</field>
+        <field name="model">pg.eco</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'draft'"
+                  decoration-info="state in ('analysis', 'approval')"
+                  decoration-primary="state == 'implementation'"
+                  decoration-success="state == 'released'"
+                  decoration-danger="state == 'rejected'">
+                <field name="name"/>
+                <field name="title"/>
+                <field name="change_type"/>
+                <field name="priority" widget="badge"
+                       decoration-warning="priority == 'high'"
+                       decoration-danger="priority == 'critical'"/>
+                <field name="state" widget="badge"/>
+                <field name="requestor_id"/>
+                <field name="engineering_lead_id"/>
+                <field name="line_count" string="# Items"/>
+                <field name="target_release_date"/>
+                <field name="actual_release_date" optional="hide"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_eco_kanban" model="ir.ui.view">
+        <field name="name">pg.eco.kanban</field>
+        <field name="model">pg.eco</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column">
+                <field name="state"/>
+                <field name="priority"/>
+                <field name="change_type"/>
+                <field name="line_count"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="o_kanban_record_top">
+                            <strong class="o_kanban_record_title">
+                                <field name="name"/>
+                            </strong>
+                            <field name="priority" widget="priority"/>
+                        </div>
+                        <div class="o_kanban_record_body">
+                            <field name="title"/>
+                            <div class="text-muted">
+                                <i class="fa fa-tag" title="Change Type"/>
+                                <field name="change_type"/>
+                                · <field name="line_count"/> items
+                            </div>
+                        </div>
+                        <div class="o_kanban_record_bottom">
+                            <div class="oe_kanban_bottom_left">
+                                <field name="requestor_id" widget="many2one_avatar_user"/>
+                            </div>
+                            <div class="oe_kanban_bottom_right">
+                                <field name="target_release_date"/>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_pg_eco_search" model="ir.ui.view">
+        <field name="name">pg.eco.search</field>
+        <field name="model">pg.eco</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="title"/>
+                <field name="requestor_id"/>
+                <field name="engineering_lead_id"/>
+                <filter name="filter_draft" string="Draft"
+                        domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_open" string="Open (not released/rejected)"
+                        domain="[('state', 'not in', ('released', 'rejected'))]"/>
+                <filter name="filter_released" string="Released"
+                        domain="[('state', '=', 'released')]"/>
+                <filter name="filter_high_priority" string="High / Critical Priority"
+                        domain="[('priority', 'in', ('high', 'critical'))]"/>
+                <filter name="filter_mine" string="My ECOs"
+                        domain="[('requestor_id', '=', uid)]"/>
+                <group>
+                    <filter name="group_state" string="State"
+                            context="{'group_by': 'state'}"/>
+                    <filter name="group_priority" string="Priority"
+                            context="{'group_by': 'priority'}"/>
+                    <filter name="group_change_type" string="Change Type"
+                            context="{'group_by': 'change_type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_pg_eco_form" model="ir.ui.view">
+        <field name="name">pg.eco.form</field>
+        <field name="model">pg.eco</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_start_analysis" string="Start Analysis"
+                            type="object" class="oe_highlight"
+                            invisible="state != 'draft'"
+                            groups="product_graph_base.group_pg_engineer"/>
+                    <button name="action_submit_for_approval" string="Submit for Approval"
+                            type="object" class="oe_highlight"
+                            invisible="state != 'analysis'"
+                            groups="product_graph_base.group_pg_engineer"/>
+                    <button name="action_reset_to_draft" string="Back to Draft"
+                            type="object"
+                            invisible="state != 'analysis'"
+                            groups="product_graph_base.group_pg_engineer"/>
+                    <button name="action_approve" string="Approve"
+                            type="object" class="oe_highlight"
+                            invisible="state != 'approval'"
+                            groups="product_graph_base.group_pg_approver"/>
+                    <button name="action_reject" string="Reject"
+                            type="object" class="btn-danger"
+                            invisible="state != 'approval'"
+                            groups="product_graph_base.group_pg_approver"
+                            confirm="Reject this ECO? A rejection reason is required."/>
+                    <button name="action_release" string="Release"
+                            type="object" class="oe_highlight"
+                            invisible="state != 'implementation'"
+                            groups="product_graph_base.group_pg_approver"
+                            confirm="Release this ECO? Released ECOs are immutable."/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,analysis,approval,implementation,released"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="title"/>
+                        <h1>
+                            <field name="title" placeholder="Short description of the change..."/>
+                        </h1>
+                        <h3 class="text-muted">
+                            <field name="name" readonly="1"/>
+                        </h3>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="change_type"/>
+                            <field name="priority"/>
+                            <field name="requestor_id"/>
+                            <field name="engineering_lead_id"/>
+                        </group>
+                        <group>
+                            <field name="effective_date"/>
+                            <field name="target_release_date"/>
+                            <field name="actual_release_date"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description" name="description">
+                            <field name="description"/>
+                        </page>
+                        <page string="Affected Items" name="lines">
+                            <field name="line_ids" readonly="state in ('released', 'rejected')">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="item_id"/>
+                                    <field name="from_revision_id"/>
+                                    <field name="to_revision_id"/>
+                                    <field name="change_kind"/>
+                                    <field name="status"/>
+                                    <field name="notes"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Approval Board" name="board">
+                            <group>
+                                <field name="approval_board_ids" widget="many2many_tags"
+                                       options="{'no_create_edit': True}"/>
+                            </group>
+                            <field name="approval_ids" readonly="1">
+                                <list>
+                                    <field name="signed_on"/>
+                                    <field name="user_id"/>
+                                    <field name="decision" widget="badge"
+                                           decoration-success="decision == 'approved'"
+                                           decoration-danger="decision == 'rejected'"/>
+                                    <field name="comment"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Impact Summary" name="impact">
+                            <field name="impact_summary"/>
+                        </page>
+                        <page string="Rejection" name="rejection"
+                              invisible="state != 'rejected'">
+                            <field name="rejection_reason" readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_pg_eco" model="ir.actions.act_window">
+        <field name="name">Engineering Change Orders</field>
+        <field name="res_model">pg.eco</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="search_view_id" ref="view_pg_eco_search"/>
+        <field name="context">{'search_default_filter_open': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create your first Engineering Change Order</p>
+            <p>An ECO bundles a coordinated set of revision changes behind a governed
+               approval workflow.</p>
+        </field>
+    </record>
+
+</odoo>

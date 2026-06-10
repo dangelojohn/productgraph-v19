@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_pg_eco_root"
+              name="Change Orders"
+              parent="product_graph_base.menu_pg_root"
+              sequence="30"/>
+
+    <menuitem id="menu_pg_eco"
+              name="ECOs"
+              parent="menu_pg_eco_root"
+              action="action_pg_eco"
+              sequence="10"/>
+
+    <menuitem id="menu_pg_eco_line"
+              name="Affected Items"
+              parent="menu_pg_eco_root"
+              action="action_pg_eco_line"
+              sequence="20"/>
+
+    <menuitem id="menu_pg_eco_approval"
+              name="Approval Log"
+              parent="menu_pg_eco_root"
+              action="action_pg_eco_approval"
+              sequence="30"/>
+
+</odoo>
