@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_eco_form_relationship" model="ir.ui.view">
+        <field name="name">pg.eco.form.relationship</field>
+        <field name="model">pg.eco</field>
+        <field name="inherit_id" ref="product_graph_eco.view_pg_eco_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='line_ids']/list/field[@name='change_kind']" position="after">
+                <field name="replacement_item_id"
+                       options="{'no_create_edit': True}"
+                       column_invisible="False"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
