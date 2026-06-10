@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_item_form_inherit_relationship" model="ir.ui.view">
+        <field name="name">pg.item.form.inherit.relationship</field>
+        <field name="model">pg.item</field>
+        <field name="inherit_id" ref="product_graph_base.view_pg_item_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='page_properties']" position="after">
+                <page string="Relationships" name="page_relationships">
+                    <group>
+                        <group string="Drop-in Substitutes">
+                            <field name="substitute_ids" widget="many2many_tags"
+                                   nolabel="1" readonly="1"/>
+                        </group>
+                        <group string="Alternates (within envelope)">
+                            <field name="alternate_ids" widget="many2many_tags"
+                                   nolabel="1" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Supersedes (predecessors)">
+                            <field name="supersedes_ids" widget="many2many_tags"
+                                   nolabel="1" readonly="1"/>
+                        </group>
+                        <group string="Superseded By (successors)">
+                            <field name="superseded_by_ids" widget="many2many_tags"
+                                   nolabel="1" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="References">
+                            <field name="reference_ids" widget="many2many_tags"
+                                   nolabel="1" readonly="1"/>
+                        </group>
+                        <group string="Related (free-form)">
+                            <field name="related_to_ids" widget="many2many_tags"
+                                   nolabel="1" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Outgoing edges (this item → other)">
+                        <field name="outgoing_relationship_ids" nolabel="1">
+                            <list editable="bottom">
+                                <field name="target_item_id"
+                                       options="{'no_create_edit': True}"/>
+                                <field name="kind"/>
+                                <field name="is_symmetric"/>
+                                <field name="active" widget="boolean_toggle"/>
+                                <field name="notes"/>
+                            </list>
+                        </field>
+                    </group>
+                    <group string="Incoming edges (other → this item)">
+                        <field name="incoming_relationship_ids" nolabel="1"
+                               readonly="1">
+                            <list>
+                                <field name="source_item_id"/>
+                                <field name="kind" widget="badge"/>
+                                <field name="notes"/>
+                            </list>
+                        </field>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

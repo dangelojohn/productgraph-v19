@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_pg_relationship"
+              name="Relationships"
+              parent="product_graph_base.menu_pg_root"
+              action="action_pg_relationship"
+              sequence="50"/>
+
+</odoo>
