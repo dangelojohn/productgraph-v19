@@ -178,10 +178,10 @@ class PgRevision(models.Model):
     active = fields.Boolean(default=True)
     company_id = fields.Many2one(related='item_id.company_id', store=True, readonly=True)
 
-    _sql_constraints = [
-        ('item_revision_code_unique', 'UNIQUE(item_id, name)',
-         'Revision code must be unique per item.'),
-    ]
+    _item_revision_code_unique = models.Constraint(
+        'UNIQUE(item_id, name)',
+        'Revision code must be unique per item.',
+    )
 
     # ═════════════════════════════════════════════════════════════════════════
     # Computes

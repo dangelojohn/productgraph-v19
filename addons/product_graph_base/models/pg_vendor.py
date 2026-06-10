@@ -30,6 +30,7 @@ class PgVendor(models.Model):
     notes = fields.Text(string='Notes')
     active = fields.Boolean(default=True)
 
-    _sql_constraints = [
-        ('code_unique', 'UNIQUE(code)', 'Vendor code must be unique.'),
-    ]
+    _code_unique = models.Constraint(
+        'UNIQUE(code)',
+        'Vendor code must be unique.',
+    )

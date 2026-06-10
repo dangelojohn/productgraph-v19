@@ -226,10 +226,10 @@ class PgItem(models.Model):
         required=True,
     )
 
-    _sql_constraints = [
-        ('part_number_company_unique', 'UNIQUE(part_number, company_id)',
-         'Part number must be unique per company.'),
-    ]
+    _part_number_company_unique = models.Constraint(
+        'UNIQUE(part_number, company_id)',
+        'Part number must be unique per company.',
+    )
 
     # ═════════════════════════════════════════════════════════════════════════
     # Computes

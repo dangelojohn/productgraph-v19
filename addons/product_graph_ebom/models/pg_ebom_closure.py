@@ -55,11 +55,10 @@ class PgEbomClosure(models.Model):
     depth = fields.Integer(string='Depth', required=True, index=True)
     qty_chain = fields.Float(string='Chained Qty', default=1.0)
 
-    _sql_constraints = [
-        ('closure_unique',
-         'UNIQUE(ebom_id, ancestor_id, descendant_id, depth)',
-         'Closure row must be unique per (ebom, ancestor, descendant, depth).'),
-    ]
+    _closure_unique = models.Constraint(
+        'UNIQUE(ebom_id, ancestor_id, descendant_id, depth)',
+        'Closure row must be unique per (ebom, ancestor, descendant, depth).',
+    )
 
     def init(self):
         """Create supporting indexes for sub-3-second where-used queries.

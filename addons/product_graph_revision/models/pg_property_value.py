@@ -56,10 +56,10 @@ class PgPropertyValue(models.Model):
         store=True,
     )
 
-    _sql_constraints = [
-        ('revision_field_unique', 'UNIQUE(revision_id, field_id)',
-         'A property field may have at most one value per revision.'),
-    ]
+    _revision_field_unique = models.Constraint(
+        'UNIQUE(revision_id, field_id)',
+        'A property field may have at most one value per revision.',
+    )
 
     # ═════════════════════════════════════════════════════════════════════════
     # Computes & validation

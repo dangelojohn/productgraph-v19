@@ -19,9 +19,10 @@ class PgItemTag(models.Model):
     active = fields.Boolean(default=True)
     item_count = fields.Integer(compute='_compute_item_count', string='Items')
 
-    _sql_constraints = [
-        ('name_unique', 'UNIQUE(name)', 'Tag name must be unique.'),
-    ]
+    _name_unique = models.Constraint(
+        'UNIQUE(name)',
+        'Tag name must be unique.',
+    )
 
     def _compute_item_count(self):
         for rec in self:

@@ -39,9 +39,10 @@ class PgCategory(models.Model):
     color = fields.Integer(string='Color Index')
     item_count = fields.Integer(compute='_compute_item_count', string='Items')
 
-    _sql_constraints = [
-        ('code_unique', 'UNIQUE(code)', 'Category code must be unique.'),
-    ]
+    _code_unique = models.Constraint(
+        'UNIQUE(code)',
+        'Category code must be unique.',
+    )
 
     @api.depends('name', 'parent_id.complete_name')
     def _compute_complete_name(self):

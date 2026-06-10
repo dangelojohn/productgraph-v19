@@ -131,11 +131,10 @@ class PgEbom(models.Model):
     active = fields.Boolean(default=True)
     company_id = fields.Many2one(related='root_item_id.company_id', store=True, readonly=True)
 
-    _sql_constraints = [
-        ('root_revision_unique',
-         'UNIQUE(root_item_id, revision_id)',
-         'Only one EBOM per (root item, revision) is allowed.'),
-    ]
+    _root_revision_unique = models.Constraint(
+        'UNIQUE(root_item_id, revision_id)',
+        'Only one EBOM per (root item, revision) is allowed.',
+    )
 
     # ═════════════════════════════════════════════════════════════════════════
     # Computes
