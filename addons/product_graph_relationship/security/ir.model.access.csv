@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pg_relationship_viewer,pg.relationship viewer read,model_pg_relationship,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_relationship_engineer,pg.relationship engineer rw,model_pg_relationship,product_graph_base.group_pg_engineer,1,1,1,1
