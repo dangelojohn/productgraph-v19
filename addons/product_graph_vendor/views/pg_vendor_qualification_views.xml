@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_vendor_qualification_list" model="ir.ui.view">
+        <field name="name">pg.vendor.qualification.list</field>
+        <field name="model">pg.vendor.qualification</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="decided_on"/>
+                <field name="vendor_id"/>
+                <field name="decided_by_id"/>
+                <field name="decision" widget="badge"
+                       decoration-success="decision == 'qualified'"
+                       decoration-warning="decision == 'suspended'"
+                       decoration-danger="decision == 'disqualified'"/>
+                <field name="comment"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_pg_vendor_qualification" model="ir.actions.act_window">
+        <field name="name">Qualification Log</field>
+        <field name="res_model">pg.vendor.qualification</field>
+        <field name="view_mode">list</field>
+    </record>
+
+</odoo>

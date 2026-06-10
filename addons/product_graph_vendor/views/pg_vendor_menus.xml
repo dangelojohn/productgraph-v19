@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_pg_vendor_root"
+              name="Vendors"
+              parent="product_graph_base.menu_pg_root"
+              sequence="40"/>
+
+    <menuitem id="menu_pg_vendor"
+              name="Vendors"
+              parent="menu_pg_vendor_root"
+              action="action_pg_vendor"
+              sequence="10"/>
+
+    <menuitem id="menu_pg_vendor_part"
+              name="Vendor Parts (AVL)"
+              parent="menu_pg_vendor_root"
+              action="action_pg_vendor_part"
+              sequence="20"/>
+
+    <menuitem id="menu_pg_vendor_qualification"
+              name="Qualification Log"
+              parent="menu_pg_vendor_root"
+              action="action_pg_vendor_qualification"
+              sequence="30"/>
+
+</odoo>

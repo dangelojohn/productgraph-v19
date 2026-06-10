@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pg_vendor_engineer,pg.vendor engineer rw,product_graph_base.model_pg_vendor,product_graph_base.group_pg_engineer,1,1,1,0
+access_pg_vendor_part_engineer,pg.vendor.part engineer rw,product_graph_base.model_pg_vendor_part,product_graph_base.group_pg_engineer,1,1,1,1
+access_pg_vendor_qualification_viewer,pg.vendor.qualification viewer,model_pg_vendor_qualification,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_vendor_qualification_approver,pg.vendor.qualification approver create,model_pg_vendor_qualification,product_graph_base.group_pg_approver,1,0,1,0
