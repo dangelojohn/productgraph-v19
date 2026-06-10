@@ -100,6 +100,41 @@ class PgRelationship(models.Model):
     # ──────────────────────────────────────────────────────────────────
     # Helpers — used by pg.item computed M2Ms
     # ──────────────────────────────────────────────────────────────────
+    # ──────────────────────────────────────────────────────────────────
+    # Closure maintenance — every CRUD that affects the graph triggers
+    # a rebuild of the closure for the affected kinds. The closure is
+    # the cheaper read path; this is the cost-amortisation.
+    # ──────────────────────────────────────────────────────────────────
+    @api.model_create_multi
+    def create(self, vals_list):
+        recs = super().create(vals_list)
+        self._rebuild_closure_for_kinds(set(recs.mapped('kind')))
+        return recs
+
+    def write(self, vals):
+        before = set(self.mapped('kind'))
+        result = super().write(vals)
+        after = set(self.mapped('kind'))
+        # If the kind itself was changed, both old and new need rebuilding.
+        if 'kind' in vals or 'source_item_id' in vals \
+                or 'target_item_id' in vals or 'active' in vals:
+            self._rebuild_closure_for_kinds(before | after)
+        return result
+
+    def unlink(self):
+        kinds = set(self.mapped('kind'))
+        result = super().unlink()
+        self._rebuild_closure_for_kinds(kinds)
+        return result
+
+    @api.model
+    def _rebuild_closure_for_kinds(self, kinds):
+        if not kinds:
+            return
+        Closure = self.env['pg.relationship.closure'].sudo()
+        for k in kinds:
+            Closure._rebuild_kind(k)
+
     @api.model
     def get_related_items(self, item, kind):
         """Return all pg.item records related to `item` by `kind`.
