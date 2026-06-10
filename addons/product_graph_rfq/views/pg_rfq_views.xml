@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_rfq_list" model="ir.ui.view">
+        <field name="name">pg.rfq.list</field>
+        <field name="model">pg.rfq</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'draft'"
+                  decoration-info="state == 'sent'"
+                  decoration-primary="state == 'received'"
+                  decoration-success="state == 'awarded'"
+                  decoration-danger="state == 'cancelled'">
+                <field name="name"/>
+                <field name="title"/>
+                <field name="state" widget="badge"/>
+                <field name="requestor_id"/>
+                <field name="line_count" string="# Lines"/>
+                <field name="bid_count" string="# Bids"/>
+                <field name="due_date"/>
+                <field name="sent_on" optional="hide"/>
+                <field name="awarded_on" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_rfq_search" model="ir.ui.view">
+        <field name="name">pg.rfq.search</field>
+        <field name="model">pg.rfq</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="title"/>
+                <field name="requestor_id"/>
+                <filter name="filter_open" string="Open"
+                        domain="[('state', 'not in', ('awarded', 'cancelled'))]"/>
+                <filter name="filter_draft" string="Draft"
+                        domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_sent" string="Sent"
+                        domain="[('state', '=', 'sent')]"/>
+                <filter name="filter_received" string="Bids Received"
+                        domain="[('state', '=', 'received')]"/>
+                <filter name="filter_awarded" string="Awarded"
+                        domain="[('state', '=', 'awarded')]"/>
+                <filter name="filter_mine" string="My RFQs"
+                        domain="[('requestor_id', '=', uid)]"/>
+                <group>
+                    <filter name="group_state" string="State"
+                            context="{'group_by': 'state'}"/>
+                    <filter name="group_requestor" string="Requestor"
+                            context="{'group_by': 'requestor_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_pg_rfq_form" model="ir.ui.view">
+        <field name="name">pg.rfq.form</field>
+        <field name="model">pg.rfq</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_send" string="Send"
+                            type="object" class="oe_highlight"
+                            invisible="state != 'draft'"/>
+                    <button name="action_mark_received" string="Bids Received"
+                            type="object" class="oe_highlight"
+                            invisible="state != 'sent'"/>
+                    <button name="action_award" string="Award"
+                            type="object" class="oe_highlight"
+                            invisible="state != 'received'"
+                            confirm="Award this RFQ? Winning bids will be written back to the AVL and this RFQ will become immutable."/>
+                    <button name="action_cancel" string="Cancel"
+                            type="object"
+                            invisible="state in ('awarded', 'cancelled')"
+                            confirm="Cancel this RFQ?"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,sent,received,awarded"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="title"/>
+                        <h1>
+                            <field name="title" placeholder="What you're sourcing..."/>
+                        </h1>
+                        <h3 class="text-muted">
+                            <field name="name" readonly="1"/>
+                        </h3>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="requestor_id"/>
+                            <field name="due_date"/>
+                            <field name="promote_to_preferred"/>
+                        </group>
+                        <group>
+                            <field name="sent_on" readonly="1"/>
+                            <field name="awarded_on" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description" name="description">
+                            <field name="description"/>
+                        </page>
+                        <page string="Lines &amp; Bids" name="lines">
+                            <field name="line_ids" readonly="state in ('awarded', 'cancelled')">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="item_id"/>
+                                    <field name="qty"/>
+                                    <field name="target_date"/>
+                                    <field name="bid_count"/>
+                                    <field name="best_unit_price"/>
+                                    <field name="awarded_bid_id" readonly="1"/>
+                                    <field name="spec_notes" optional="hide"/>
+                                </list>
+                                <form>
+                                    <group>
+                                        <field name="item_id"/>
+                                        <field name="qty"/>
+                                        <field name="target_date"/>
+                                    </group>
+                                    <group string="Spec Notes">
+                                        <field name="spec_notes" nolabel="1"/>
+                                    </group>
+                                    <group string="Bids">
+                                        <field name="bid_ids" nolabel="1">
+                                            <list editable="bottom">
+                                                <field name="vendor_id"/>
+                                                <field name="vendor_part_number"/>
+                                                <field name="unit_price"/>
+                                                <field name="currency_id"/>
+                                                <field name="moq"/>
+                                                <field name="lead_time_days"/>
+                                                <field name="valid_until"/>
+                                                <field name="is_awarded" widget="boolean_toggle"/>
+                                                <field name="comment" optional="hide"/>
+                                            </list>
+                                        </field>
+                                    </group>
+                                </form>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_pg_rfq" model="ir.actions.act_window">
+        <field name="name">RFQs</field>
+        <field name="res_model">pg.rfq</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_pg_rfq_search"/>
+        <field name="context">{'search_default_filter_open': 1}</field>
+    </record>
+
+</odoo>

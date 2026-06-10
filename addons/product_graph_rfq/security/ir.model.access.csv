@@ -1,0 +1,8 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pg_rfq_viewer,pg.rfq viewer read,model_pg_rfq,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_rfq_engineer,pg.rfq engineer rw,model_pg_rfq,product_graph_base.group_pg_engineer,1,1,1,0
+access_pg_rfq_admin,pg.rfq admin full,model_pg_rfq,product_graph_base.group_pg_admin,1,1,1,1
+access_pg_rfq_line_viewer,pg.rfq.line viewer read,model_pg_rfq_line,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_rfq_line_engineer,pg.rfq.line engineer rw,model_pg_rfq_line,product_graph_base.group_pg_engineer,1,1,1,1
+access_pg_rfq_bid_viewer,pg.rfq.bid viewer read,model_pg_rfq_bid,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_rfq_bid_engineer,pg.rfq.bid engineer rw,model_pg_rfq_bid,product_graph_base.group_pg_engineer,1,1,1,1
