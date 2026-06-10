@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- analysis → approval: notify the approval-board members. -->
+        <record id="mail_template_eco_submitted" model="mail.template">
+            <field name="name">ECO: Submitted for Approval</field>
+            <field name="model_id" ref="model_pg_eco"/>
+            <field name="subject">ECO {{ object.name }} submitted for approval — {{ object.title }}</field>
+            <field name="email_from">{{ user.email_formatted or '' }}</field>
+            <field name="partner_to">{{ ','.join(str(p.id) for p in object.approval_board_ids.mapped('partner_id') if p) }}</field>
+            <field name="body_html" type="html">
+                <div>
+                    <p>Hi,</p>
+                    <p>
+                        <strong t-out="object.name"/> — <em t-out="object.title"/> — has been
+                        submitted for approval-board review.
+                    </p>
+                    <table style="margin: 12px 0; font-size: 13px;">
+                        <tr><td><b>Change type:</b></td><td t-out="dict(object._fields['change_type'].selection).get(object.change_type, object.change_type)"/></tr>
+                        <tr><td><b>Priority:</b></td><td t-out="dict(object._fields['priority'].selection).get(object.priority, object.priority)"/></tr>
+                        <tr><td><b>Requestor:</b></td><td t-out="object.requestor_id.name"/></tr>
+                        <tr><td><b>Engineering lead:</b></td><td t-out="object.engineering_lead_id.name or '—'"/></tr>
+                        <tr><td><b>Affected items:</b></td><td t-out="object.line_count"/></tr>
+                        <tr><td><b>Target release:</b></td><td t-out="object.target_release_date or '—'"/></tr>
+                    </table>
+                    <p>Please review the impact summary and approval-board the ECO in
+                       the ProductGraph backend.</p>
+                </div>
+            </field>
+            <field name="auto_delete" eval="False"/>
+        </record>
+
+        <!-- approval → implementation: notify the requestor + engineering lead. -->
+        <record id="mail_template_eco_approved" model="mail.template">
+            <field name="name">ECO: Approved</field>
+            <field name="model_id" ref="model_pg_eco"/>
+            <field name="subject">ECO {{ object.name }} approved — implementation green-light</field>
+            <field name="email_from">{{ user.email_formatted or '' }}</field>
+            <field name="partner_to">{{ ','.join(str(p.id) for p in (object.requestor_id.partner_id + object.engineering_lead_id.partner_id) if p) }}</field>
+            <field name="body_html" type="html">
+                <div>
+                    <p>Hi,</p>
+                    <p>
+                        <strong t-out="object.name"/> — <em t-out="object.title"/> — has been
+                        <span style="color: #0c8a3f; font-weight: 600;">approved</span>
+                        by the change-approval board.
+                    </p>
+                    <p>
+                        Engineering may now proceed with implementation. The ECO will be
+                        considered closed once every line's target revision reaches the
+                        Released state and you trigger Release on the ECO.
+                    </p>
+                    <p>
+                        Approval recorded by <span t-out="user.name"/>
+                        on <span t-out="format_datetime(object.create_date, tz='UTC')"/>.
+                    </p>
+                </div>
+            </field>
+            <field name="auto_delete" eval="False"/>
+        </record>
+
+        <!-- approval → rejected: notify the requestor + engineering lead with the reason. -->
+        <record id="mail_template_eco_rejected" model="mail.template">
+            <field name="name">ECO: Rejected</field>
+            <field name="model_id" ref="model_pg_eco"/>
+            <field name="subject">ECO {{ object.name }} rejected — see comments</field>
+            <field name="email_from">{{ user.email_formatted or '' }}</field>
+            <field name="partner_to">{{ ','.join(str(p.id) for p in (object.requestor_id.partner_id + object.engineering_lead_id.partner_id) if p) }}</field>
+            <field name="body_html" type="html">
+                <div>
+                    <p>Hi,</p>
+                    <p>
+                        <strong t-out="object.name"/> — <em t-out="object.title"/> — has been
+                        <span style="color: #c00; font-weight: 600;">rejected</span>
+                        by the change-approval board.
+                    </p>
+                    <p><b>Reason:</b></p>
+                    <blockquote style="border-left: 3px solid #c00; padding-left: 8px; margin: 8px 0; color: #555;">
+                        <span t-out="object.rejection_reason or '—'"/>
+                    </blockquote>
+                    <p>
+                        Please address the feedback and resubmit if appropriate.
+                        The ECO is now in the rejected state and is read-only.
+                    </p>
+                </div>
+            </field>
+            <field name="auto_delete" eval="False"/>
+        </record>
+
+        <!-- implementation → released: notify the requestor + ALL group_pg_mfg members
+             so manufacturing can update their production plans. -->
+        <record id="mail_template_eco_released" model="mail.template">
+            <field name="name">ECO: Released</field>
+            <field name="model_id" ref="model_pg_eco"/>
+            <field name="subject">ECO {{ object.name }} released — change is live</field>
+            <field name="email_from">{{ user.email_formatted or '' }}</field>
+            <field name="partner_to">{{ ','.join(str(p.id) for p in (object.requestor_id.partner_id + object.env.ref('product_graph_base.group_pg_mfg').users.mapped('partner_id')) if p) }}</field>
+            <field name="body_html" type="html">
+                <div>
+                    <p>Hi,</p>
+                    <p>
+                        <strong t-out="object.name"/> — <em t-out="object.title"/> — has been
+                        <span style="color: #0c8a3f; font-weight: 600;">released</span>
+                        and is now live in engineering.
+                    </p>
+                    <table style="margin: 12px 0; font-size: 13px;">
+                        <tr><td><b>Effective date:</b></td><td t-out="object.effective_date or '—'"/></tr>
+                        <tr><td><b>Released on:</b></td><td t-out="format_datetime(object.actual_release_date, tz='UTC') if object.actual_release_date else '—'"/></tr>
+                        <tr><td><b>Affected items:</b></td><td t-out="object.line_count"/></tr>
+                    </table>
+                    <p>
+                        Manufacturing: please refresh open production plans against the new
+                        revisions. The ECO is now read-only — any further change requires
+                        a new ECO.
+                    </p>
+                </div>
+            </field>
+            <field name="auto_delete" eval="False"/>
+        </record>
+
+    </data>
+</odoo>

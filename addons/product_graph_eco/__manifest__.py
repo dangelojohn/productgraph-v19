@@ -69,6 +69,7 @@ Compatible with Odoo 19.0 Community Edition.
         'security/pg_eco_security.xml',
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',
+        'data/mail_templates.xml',
         'views/pg_eco_views.xml',
         'views/pg_eco_line_views.xml',
         'views/pg_eco_approval_views.xml',
