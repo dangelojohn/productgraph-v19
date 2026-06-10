@@ -39,7 +39,7 @@ class PgVendorPart(models.Model):
     notes = fields.Text(string='Notes')
     active = fields.Boolean(default=True)
 
-    _sql_constraints = [
-        ('item_vendor_unique', 'UNIQUE(item_id, vendor_id, vendor_part_number)',
-         'Each (item, vendor, part number) tuple must be unique.'),
-    ]
+    _item_vendor_unique = models.Constraint(
+        'UNIQUE(item_id, vendor_id, vendor_part_number)',
+        'Each (item, vendor, part number) tuple must be unique.',
+    )

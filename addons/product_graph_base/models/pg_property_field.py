@@ -73,10 +73,10 @@ class PgPropertyField(models.Model):
         help='Optional unit hint for numeric fields. Display-only in Phase 1.',
     )
 
-    _sql_constraints = [
-        ('template_key_unique', 'UNIQUE(template_id, key)',
-         'Property field key must be unique within a template.'),
-    ]
+    _template_key_unique = models.Constraint(
+        'UNIQUE(template_id, key)',
+        'Property field key must be unique within a template.',
+    )
 
     @api.constrains('key')
     def _check_key_format(self):

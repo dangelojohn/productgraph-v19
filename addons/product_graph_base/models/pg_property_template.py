@@ -67,9 +67,10 @@ class PgPropertyTemplate(models.Model):
 
     active = fields.Boolean(default=True)
 
-    _sql_constraints = [
-        ('code_unique', 'UNIQUE(code)', 'Property template code must be unique.'),
-    ]
+    _code_unique = models.Constraint(
+        'UNIQUE(code)',
+        'Property template code must be unique.',
+    )
 
     @api.depends('field_ids')
     def _compute_field_count(self):
