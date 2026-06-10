@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_rfq_bid_list" model="ir.ui.view">
+        <field name="name">pg.rfq.bid.list</field>
+        <field name="model">pg.rfq.bid</field>
+        <field name="arch" type="xml">
+            <list decoration-success="is_awarded">
+                <field name="rfq_id"/>
+                <field name="line_id"/>
+                <field name="vendor_id"/>
+                <field name="vendor_part_number"/>
+                <field name="unit_price"/>
+                <field name="currency_id" optional="hide"/>
+                <field name="moq"/>
+                <field name="lead_time_days"/>
+                <field name="valid_until"/>
+                <field name="is_awarded" widget="boolean_toggle"/>
+                <field name="rfq_state" widget="badge" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_pg_rfq_bid" model="ir.actions.act_window">
+        <field name="name">RFQ Bids</field>
+        <field name="res_model">pg.rfq.bid</field>
+        <field name="view_mode">list</field>
+    </record>
+
+</odoo>

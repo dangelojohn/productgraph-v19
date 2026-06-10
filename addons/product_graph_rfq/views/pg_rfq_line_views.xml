@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_rfq_line_list" model="ir.ui.view">
+        <field name="name">pg.rfq.line.list</field>
+        <field name="model">pg.rfq.line</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="rfq_id"/>
+                <field name="item_id"/>
+                <field name="qty"/>
+                <field name="target_date"/>
+                <field name="bid_count"/>
+                <field name="best_unit_price"/>
+                <field name="awarded_bid_id"/>
+                <field name="rfq_state" widget="badge" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_pg_rfq_line" model="ir.actions.act_window">
+        <field name="name">RFQ Lines</field>
+        <field name="res_model">pg.rfq.line</field>
+        <field name="view_mode">list</field>
+    </record>
+
+</odoo>
