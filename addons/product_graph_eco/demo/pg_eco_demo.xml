@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!--
+            Demo ECO walking the soft-close hinge demo part through a
+            corrective change. The line points at the existing demo
+            revision A; in a real flow the engineer would create a new
+            revision B as the to_revision and bump it through review →
+            released as part of the ECO implementation phase.
+
+            Left in draft state so the demo data load doesn't trigger the
+            board-approval / immutability path.
+        -->
+        <record id="demo_eco_hinge_corrective" model="pg.eco">
+            <field name="title">Hinge supplier change — substitute MPN H-9982</field>
+            <field name="change_type">corrective</field>
+            <field name="priority">high</field>
+            <field name="requestor_id" ref="base.user_admin"/>
+            <field name="engineering_lead_id" ref="base.user_admin"/>
+            <field name="approval_board_ids" eval="[(6, 0, [ref('base.user_admin')])]"/>
+            <field name="description">
+                <![CDATA[<p>The current soft-close hinge supplier has notified us of a
+                    discontinuation. Substitute MPN <b>H-9982</b> from the secondary
+                    vendor is form-and-fit compatible and bench-tested.</p>]]>
+            </field>
+            <field name="impact_summary">
+                <![CDATA[<ul>
+                    <li>1 affected item (soft-close hinge)</li>
+                    <li>No tooling change required</li>
+                    <li>Procurement lead time delta: +1 week</li>
+                </ul>]]>
+            </field>
+        </record>
+
+        <record id="demo_eco_line_hinge" model="pg.eco.line">
+            <field name="eco_id" ref="demo_eco_hinge_corrective"/>
+            <field name="item_id" ref="product_graph_base.demo_item_soft_close_hinge"/>
+            <field name="from_revision_id" ref="product_graph_revision.demo_rev_hinge_A"/>
+            <field name="change_kind">property_change</field>
+            <field name="notes">MPN substitution + lead-time update on the property template.</field>
+        </record>
+    </data>
+</odoo>
