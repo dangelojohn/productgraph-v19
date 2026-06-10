@@ -1,82 +1,164 @@
 # ProductGraph for Odoo 19 CE
 
-OpenBOM-mirror engineering catalog + governed release-to-MRP for Odoo 19 Community Edition. Five generic LGPL addons, one MCP sidecar for LLM agents, and one private bridge addon glueing the existing `southbrook_plm` ECO workflow.
+OpenBOM-mirror engineering catalog + governed release-to-MRP for Odoo
+19 Community Edition. Adds the engineering-system-of-record layer
+Odoo's stock catalog doesn't have — items, revisions, EBOMs, ECOs,
+vendor-AVL, RFQ, relationships, CAD-driven import — and bridges
+governed releases into `mrp.bom`.
 
-Read [`CLAUDE.md`](CLAUDE.md) first — it locks the architecture decisions for this build and overrides anything in the source bibles when they conflict. Read [`DECISIONS.md`](DECISIONS.md) for the audit trail of why each choice was made.
+Read [`CLAUDE.md`](CLAUDE.md) first — it locks the architecture
+decisions for this build and overrides anything in the source bibles
+when they conflict. Read [`DECISIONS.md`](DECISIONS.md) for the audit
+trail of why each choice was made.
 
-## What's here
+## What ships
 
+10 Odoo 19 CE addons + 1 MCP sidecar + 1 deployment-specific bridge
+spec. Every addon is LGPL-3.
+
+### Phase 1 (foundation)
+
+| Module | Owns | Key types |
+|---|---|---|
+| `product_graph_base` | Item master, categories, properties, security, audit log, vendor + vendor-part stubs | `pg.item`, `pg.category`, `pg.property.template`, `pg.audit.log`, `pg.vendor`, `pg.vendor.part` |
+| `product_graph_revision` | Revision lifecycle, property values, versioned documents | `pg.revision`, `pg.property.value`, `pg.document` |
+| `product_graph_ebom` | Engineering BOM + materialised closure for where-used | `pg.ebom`, `pg.ebom.line`, `pg.ebom.closure` |
+| `product_graph_release` | The release boundary — the only path to `mrp.bom` | `pg.release`, `pg.release.line`, release wizard |
+| `product_graph_api` | REST `/api/v1/productgraph/*` | controllers |
+
+### Phase 2 (added 2026-06-10)
+
+| Module | Owns | Key types |
+|---|---|---|
+| `product_graph_eco` | Engineering Change Order lifecycle + Bible §7.3 mail templates | `pg.eco`, `pg.eco.line`, `pg.eco.approval` |
+| `product_graph_vendor` | AVL/AML qualification lifecycle | extends `pg.vendor` with state machine, `pg.vendor.qualification` audit |
+| `product_graph_rfq` | Engineering RFQ that writes winning bids back to AVL pricing | `pg.rfq`, `pg.rfq.line`, `pg.rfq.bid` |
+| `product_graph_relationship` | Sideways graph (substitutes, alternates, supersedes, references, related) + transitive closure | `pg.relationship`, `pg.relationship.closure` |
+| `product_graph_cad` | Pluggable CAD connector framework + JSON-file reference driver | `pg.cad.connector`, `pg.cad.import`, `pg.cad.import.line` |
+| `product_graph_cad_solidworks` | SOLIDWORKS PDM driver (HTTP-proxy pattern; proxy spec in `docs/`) | `SolidworksPdmConnector` |
+| `product_graph_cad_onshape` | OnShape REST driver (pure HTTPS, no vendor libraries) | `OnShapeConnector` |
+| `product_graph_procurement` | RFQ award → `purchase.requisition` line items | extends `pg.rfq` |
+| `product_graph_eco_relationship` | ECO release → `pg.relationship.supersedes` edges | extends `pg.eco`, `pg.eco.line` |
+
+### MCP sidecar
+
+`mcp/` — standalone Python service (Python `mcp` SDK over XML-RPC to
+Odoo). ~20 read-only tools across catalog, BOM, revision, document,
+release, vendor, ECO, RFQ, relationship.
+
+### Bridge spec
+
+`bridge_spec/product_graph_southbrook/` — design spec for the private
+addon that wires `southbrook_plm.eco` → `pg.release.action_execute_release()`.
+Actual code lives in `~/southbrook-v19cr/` for the Southbrook deployment.
+
+## Quick start
+
+### Local dev install
+
+Add `addons/` to Odoo's addons path, then install in dependency order:
+
+```bash
+odoo -d <db> -i product_graph_base
+odoo -d <db> -i product_graph_revision,product_graph_ebom
+odoo -d <db> -i product_graph_release,product_graph_api
+
+# Phase 2 (optional)
+odoo -d <db> -i product_graph_eco,product_graph_vendor,product_graph_rfq
+odoo -d <db> -i product_graph_relationship,product_graph_cad
+odoo -d <db> -i product_graph_procurement,product_graph_eco_relationship
+odoo -d <db> -i product_graph_cad_solidworks,product_graph_cad_onshape
 ```
-addons/                              # 5 Odoo 19 CE addons (LGPL-3)
-  product_graph_base/                # pg.item, pg.category, pg.property.*, audit log, security (6 groups), per-type sequences, vendor + asset stubs
-  product_graph_revision/            # pg.revision (5-state) + pg.document + pg.property.value
-  product_graph_ebom/                # pg.ebom (4-state) + pg.ebom.line + pg.ebom.closure (materialized where-used)
-  product_graph_release/             # pg.release + mrp.production traceability + QWeb reports + 5-step wizard
-  product_graph_api/                 # REST /api/v1/productgraph/* per the API Bible
 
-mcp/                                 # product-graph-mcp sidecar (separate container)
-  src/product_graph_mcp/             # Python package
-    tools/                           # catalog / bom / revision / document / release tools
-  Dockerfile, docker-compose.yml     # QNAP alfacore-caddy network drop-in
-  .env.example                       # PRODUCTGRAPH_ODOO_URL + PRODUCTGRAPH_API_KEY pair
+### Running the test suite
 
-bridge_spec/                         # Spec + reference skeleton for the Southbrook bridge
-  SPEC.md                            # What goes where, open questions, deploy notes
-  product_graph_southbrook/          # Move to ~/southbrook-v19cr/ private repo before deploying
-
-docs/                                # The Bibles + UX mockup (read-only reference)
-  ProductGraph_Architecture_Bible_v1.0.md
-  020_State_Machine_Bible.md
-  026_Manufacturing_Governance.md
-  ProductGraph_UX_v2.html
-  ROOT_CLAUDE_SOURCE.md
-
-_seed/                               # The v19.0.1.0.0 seed module + zip we harvested from
+```bash
+odoo -d <db> -i <module> --test-enable --test-tags product_graph
 ```
 
-## Architectural rules (non-negotiable — see CLAUDE.md §"Hard architectural rules")
+Performance benchmarks (Bible §12.2 budgets):
+
+```bash
+odoo -d <db> -u product_graph_relationship --test-enable --test-tags perf
+```
+
+### MCP sidecar
+
+See `mcp/README.md`. Build the image, point `PRODUCTGRAPH_ODOO_URL` +
+`PRODUCTGRAPH_API_KEY` at your Odoo, run the container; SSE endpoint
+binds to `:9234/sse`.
+
+## Architecture
+
+### Hard rules (from `CLAUDE.md`)
 
 | Rule | What it means |
 |---|---|
 | R1 | `mrp.bom` / `mrp.bom.line` are written ONLY in `PgRelease.action_execute_release`. |
-| R2 | No raw SQL on `pg.*` tables. Use the `_pg_release_bypass` context flag instead (D8). |
+| R2 | No raw SQL on `pg.*` tables. Use the `_pg_release_bypass` context flag instead (D8). The single exception: `pg.relationship.closure._rebuild_kind()` uses a recursive CTE — safe because the closure is internal, deterministic, has no immutability state. |
 | R3 | No hard deletes on released or historically significant records. |
-| R4 | Every state transition writes an audit log + chatter message. |
+| R4 | Every state transition writes an audit log + chatter message + notification. |
 | R5 | One model per XML view file. |
 | R6 | Per-type part-number sequences: PG-ASM, PG-PRT, PG-BUY, PG-DOC, PG-SFT, PG-SVC. |
 | R7 | Six security groups, linear hierarchy: viewer ⊂ user ⊂ mfg ⊂ engineer ⊂ approver ⊂ admin. |
-| R8 | Bible-faithful state machines on item (6), revision (5), ebom (4), release (4). |
-| R9 | Phase 1 ships base+revision+ebom+release+api+mcp+bridge. ECO/AVL/graph/CAD are Phase 2+. |
+| R8 | Bible-faithful state machines on every governed model. |
+| R9 | Phase boundaries documented per module; Phase 2 modules can be omitted without breaking Phase 1. |
 
-## Install order
+### State machines
 
-Locally, in an Odoo 19 CE dev instance with the `addons/` dir on the addons path:
+| Model | States |
+|---|---|
+| `pg.item` | concept → prototype → engineering → released → service → obsolete |
+| `pg.revision` | draft → review → released → superseded → obsolete |
+| `pg.ebom` | draft → review → released → superseded |
+| `pg.release` | pending → executing → completed → failed |
+| `pg.eco` | draft → analysis → approval → implementation → released / rejected |
+| `pg.rfq` | draft → sent → received → awarded / cancelled |
+| `pg.vendor` | unqualified → probationary → qualified → suspended → disqualified |
 
-```
-product_graph_base
-product_graph_revision
-product_graph_ebom
-product_graph_release
-product_graph_api
-```
+Full transition + authority matrix in `docs/020_State_Machine_Bible.md`.
 
-Then on the QNAP southbrook stack, install the bridge addon (after moving it to the private repo).
+### Performance targets (Bible §12.2)
 
-## Running the tests
-
-```bash
-odoo-bin -c odoo.conf -d <db> --test-enable \
-  --test-tags product_graph \
-  -i product_graph_base,product_graph_revision,product_graph_ebom,product_graph_release
-```
+| Operation | Target | Hard Limit | Verified |
+|---|---|---|---|
+| Item list view (1000 records) | < 1 s | 2 s | — (untested) |
+| Item search by part number | < 0.5 s | 1 s | — |
+| EBOM display (50-line assembly) | < 2 s | 3 s | — |
+| Where-Used (3 levels deep) | < 3 s | 5 s | ✓ `test_medium_scale_three_hop_query` |
+| 500-item closure rebuild | < 10 s | — | ✓ `test_large_scale_closure_rebuild` |
+| Release action (50-line EBOM) | < 10 s | 30 s | — |
 
 ## Team coding protocol
 
-Co-authored by Claude Code, Claude.ai, and OpenAI agents. Commit messages tag the author: `[agent:claude-code]`, `[agent:claude.ai]`, `[agent:gpt]`. Architectural deviations require a human decision and a `DECISIONS.md` update.
+Co-authored by Claude Code, Claude.ai, and OpenAI agents. Commit
+messages tag the author: `[agent:claude-code]`, `[agent:claude.ai]`,
+`[agent:gpt]`. Architectural deviations require a human decision and
+a `DECISIONS.md` update.
 
-## Status
+## Status (2026-06-10)
 
-Phase 1 scaffolding complete. Next steps:
-1. Stand up a local Odoo 19 dev instance, install the five addons, run the test suite.
-2. Build the MCP sidecar container and run a smoke test against the local Odoo.
-3. Move `bridge_spec/product_graph_southbrook/` to `~/southbrook-v19cr/`, confirm the southbrook ECO model name + closure method, deploy to the QNAP southbrook stack.
+* All 10 addons + 1 MCP sidecar installed in production on the
+  Southbrook QNAP stack (`southbrookcabinetry.space`).
+* ~190 tests across all addons, 0 failures, 0 errors on `pg_test_qnap`.
+* 13 unique constraints actually enforced in Postgres (after the
+  `_sql_constraints → models.Constraint` migration documented in
+  `docs/odoo19_constraint_migration.md`).
+* Cloudflared tunnel fronts `https://southbrookcabinetry.space` for
+  the customer Flutter PWA, `/mcp/sse` for the MCP sidecar, and the
+  Odoo web client.
+
+## Documents
+
+* `CLAUDE.md` — build brief (operating frame, decisions D1-D8, hard rules)
+* `docs/ProductGraph_Architecture_Bible_v1.0.md` — master spec
+* `docs/020_State_Machine_Bible.md` — every transition
+* `docs/026_Manufacturing_Governance.md` — MO/PO collision rules
+* `docs/solidworks_proxy_spec.md` — Windows-side proxy contract
+* `docs/ROOT_CLAUDE_SOURCE.md` — original 13-section base spec
+
+## License
+
+* Addons: LGPL-3
+* MCP sidecar: LGPL-3
+* `product_graph_southbrook` bridge: proprietary (deployment-specific)

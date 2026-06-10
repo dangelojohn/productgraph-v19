@@ -97,84 +97,89 @@ class PgRelationshipClosure(models.Model):
     # ──────────────────────────────────────────────────────────────────
     @api.model
     def _rebuild_kind(self, kind: str, max_depth: int = 200) -> int:
-        """Rebuild the closure rows for a single kind.
+        """Rebuild the closure rows for a single kind, entirely in
+        Postgres via a recursive CTE.
 
-        Returns the row count. Wipes existing rows for the kind first
-        so the operation is idempotent.
+        The previous Python-BFS + executemany approach was O(rows) Python
+        work plus O(rows) round-trips for the INSERT — at 500 items /
+        ~250k closure rows it was minutes. The CTE keeps every row in
+        Postgres' query planner and executes one INSERT INTO ... SELECT.
+
+        Returns the row count. Wipes existing rows for the kind first so
+        the operation is idempotent.
         """
-        Rel = self.env['pg.relationship']
-        # Read raw edge tuples in one query instead of touching each
-        # recordset field — for big graphs this matters.
-        edge_rows = Rel.search_read(
-            [('kind', '=', kind), ('active', '=', True)],
-            ['source_item_id', 'target_item_id'],
-        )
-
-        # Adjacency: source -> {targets}. For symmetric kinds, also add the
-        # reverse so the BFS walks both directions naturally.
-        adj: dict[int, set[int]] = defaultdict(set)
-        for row in edge_rows:
-            # search_read returns the M2O as [id, name]; index 0 is the id.
-            src = row['source_item_id'][0] if isinstance(row['source_item_id'], list) else row['source_item_id']
-            tgt = row['target_item_id'][0] if isinstance(row['target_item_id'], list) else row['target_item_id']
-            adj[src].add(tgt)
-            if kind in SYMMETRIC_KINDS:
-                adj[tgt].add(src)
-
-        # BFS from every node that has outgoing edges. Closure semantics:
-        # (source, target, depth) where depth is the shortest hop count.
-        rows: list[dict] = []
-        for source_id in list(adj.keys()):
-            visited = {source_id: 0}
-            queue = deque([source_id])
-            while queue:
-                cur = queue.popleft()
-                cur_depth = visited[cur]
-                if cur_depth >= max_depth:
-                    continue
-                for nxt in adj[cur]:
-                    if nxt in visited:
-                        continue
-                    visited[nxt] = cur_depth + 1
-                    queue.append(nxt)
-            for target_id, depth in visited.items():
-                if depth == 0:
-                    continue  # skip the source itself
-                rows.append({
-                    'source_item_id': source_id,
-                    'target_item_id': target_id,
-                    'kind': kind,
-                    'depth': depth,
-                })
-
-        # Wipe stale rows and write fresh. Use raw SQL for both steps —
-        # the closure table has no compute / tracking and is internal-
-        # only (rebuilt deterministically), so going through the ORM
-        # buys nothing and costs O(rows) time for chatter / cache work.
         cr = self.env.cr
+        user_id = self.env.user.id or 1
+
+        # Wipe stale rows.
         cr.execute(
             "DELETE FROM pg_relationship_closure WHERE kind = %s",
             (kind,),
         )
-        if rows:
-            user_id = self.env.user.id or 1
-            # psycopg2 execute_values would be ideal; the cursor wrapper
-            # supports executemany so we batch through that.
-            cr.executemany(
-                "INSERT INTO pg_relationship_closure "
-                "(source_item_id, target_item_id, kind, depth, "
-                " create_uid, write_uid, create_date, write_date) "
-                "VALUES (%(source_item_id)s, %(target_item_id)s, "
-                " %(kind)s, %(depth)s, "
-                f" {user_id}, {user_id}, NOW(), NOW())",
-                rows,
+
+        # For symmetric kinds, the edge set is doubled in the seed CTE
+        # so the walk goes both directions naturally.
+        symmetric = kind in SYMMETRIC_KINDS
+        edge_select = """
+            SELECT source_item_id, target_item_id
+              FROM pg_relationship
+             WHERE kind = %(kind)s AND active = TRUE
+        """
+        if symmetric:
+            edge_select += """
+            UNION
+            SELECT target_item_id, source_item_id
+              FROM pg_relationship
+             WHERE kind = %(kind)s AND active = TRUE
+            """
+
+        # UNION ALL + array-tracked visited set is the idiomatic
+        # Postgres recursive graph traversal. UNION (with dedup at
+        # each iteration) churns through O(N^2) comparisons; UNION ALL
+        # with a visited-array filter is O(N * avg_degree * depth).
+        # The path array also doubles as the cycle guard for symmetric
+        # kinds where A→B→A would otherwise loop forever.
+        sql = f"""
+            WITH RECURSIVE edges AS (
+                {edge_select}
+            ),
+            walk AS (
+                SELECT source_item_id AS source_id,
+                       target_item_id AS target_id,
+                       1 AS depth,
+                       ARRAY[source_item_id, target_item_id] AS path
+                  FROM edges
+                UNION ALL
+                SELECT w.source_id,
+                       e.target_item_id AS target_id,
+                       w.depth + 1,
+                       w.path || e.target_item_id
+                  FROM walk w
+                  JOIN edges e ON e.source_item_id = w.target_id
+                 WHERE w.depth < %(max_depth)s
+                   AND NOT (e.target_item_id = ANY(w.path))
             )
-            self.env.invalidate_all()
+            INSERT INTO pg_relationship_closure
+                (source_item_id, target_item_id, kind, depth,
+                 create_uid, write_uid, create_date, write_date)
+            SELECT source_id, target_id, %(kind)s, MIN(depth),
+                   %(uid)s, %(uid)s, NOW(), NOW()
+              FROM walk
+             GROUP BY source_id, target_id
+        """
+        cr.execute(sql, {
+            'kind': kind,
+            'max_depth': max_depth,
+            'uid': user_id,
+        })
+        row_count = cr.rowcount
+        self.env.invalidate_all()
+        if row_count:
             _logger.info(
                 'pg.relationship.closure: rebuilt %d rows for kind=%s',
-                len(rows), kind,
+                row_count, kind,
             )
-        return len(rows)
+        return row_count
 
     @api.model
     def _rebuild_all(self) -> dict[str, int]:
