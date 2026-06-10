@@ -1,0 +1,8 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pg_cad_connector_viewer,pg.cad.connector viewer,model_pg_cad_connector,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_cad_connector_engineer,pg.cad.connector engineer,model_pg_cad_connector,product_graph_base.group_pg_engineer,1,1,1,0
+access_pg_cad_connector_admin,pg.cad.connector admin,model_pg_cad_connector,product_graph_base.group_pg_admin,1,1,1,1
+access_pg_cad_import_viewer,pg.cad.import viewer,model_pg_cad_import,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_cad_import_engineer,pg.cad.import engineer rw,model_pg_cad_import,product_graph_base.group_pg_engineer,1,1,1,0
+access_pg_cad_import_line_viewer,pg.cad.import.line viewer,model_pg_cad_import_line,product_graph_base.group_pg_viewer,1,0,0,0
+access_pg_cad_import_line_engineer,pg.cad.import.line engineer rw,model_pg_cad_import_line,product_graph_base.group_pg_engineer,1,1,1,1

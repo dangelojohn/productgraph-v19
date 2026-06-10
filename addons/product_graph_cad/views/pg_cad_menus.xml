@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_pg_cad_root"
+              name="CAD"
+              parent="product_graph_base.menu_pg_root"
+              sequence="55"/>
+
+    <menuitem id="menu_pg_cad_connector"
+              name="Connectors"
+              parent="menu_pg_cad_root"
+              action="action_pg_cad_connector"
+              sequence="10"/>
+
+    <menuitem id="menu_pg_cad_import"
+              name="Imports"
+              parent="menu_pg_cad_root"
+              action="action_pg_cad_import"
+              sequence="20"/>
+
+</odoo>
