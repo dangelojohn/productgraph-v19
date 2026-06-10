@@ -10,7 +10,10 @@ from mcp.types import TextContent, Tool
 
 from .config import Config
 from .odoo_client import OdooClient
-from .tools import catalog, bom, revision as revision_tools, document, release
+from .tools import (
+    catalog, bom, revision as revision_tools, document, release,
+    vendor, eco, rfq, relationship,
+)
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +31,14 @@ TOOL_REGISTRY = [
     *document.TOOLS,
     # Release simulation (read-only — full release goes through the wizard / REST)
     *release.TOOLS,
+    # Phase 2 — vendor / AVL (read-only)
+    *vendor.TOOLS,
+    # Phase 2 — ECO inspection (read-only)
+    *eco.TOOLS,
+    # Phase 2 — RFQ inspection (read-only)
+    *rfq.TOOLS,
+    # Phase 2 — relationship graph (read-only)
+    *relationship.TOOLS,
 ]
 
 
