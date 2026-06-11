@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ProductGraph.SolidworksProxy</RootNamespace>
+    <AssemblyName>solidworks_proxy</AssemblyName>
+    <!--
+      The EPDM Type Library lives in C:\Program Files\SOLIDWORKS Corp\
+      SOLIDWORKS PDM\EPDM.Interop.epdm.dll on a host with SOLIDWORKS PDM
+      Client installed. Reference it at build time on the deployment host;
+      this csproj's pre-set HintPath is the standard install location.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="EPDM.Interop.epdm">
+      <HintPath>C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS PDM\EPDM.Interop.epdm.dll</HintPath>
+      <EmbedInteropTypes>true</EmbedInteropTypes>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
