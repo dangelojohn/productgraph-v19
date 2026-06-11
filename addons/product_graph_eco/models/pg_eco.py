@@ -324,8 +324,14 @@ class PgEco(models.Model):
             rec._check_transition(
                 ('implementation',), 'released', 'product_graph_base.group_pg_approver',
             )
+            # change_kind='obsolete' and 'introduce' don't have a target
+            # revision for the affected item itself — the validation
+            # only matters for revision_bump / property_change / bom_change.
             unreleased = rec.line_ids.filtered(
-                lambda l: not l.to_revision_id or l.to_revision_id.state != 'released'
+                lambda l: l.change_kind in (
+                    'revision_bump', 'property_change', 'bom_change')
+                and (not l.to_revision_id
+                     or l.to_revision_id.state != 'released')
             )
             if unreleased:
                 bad = ', '.join(unreleased.mapped(
