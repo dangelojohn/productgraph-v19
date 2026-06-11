@@ -52,6 +52,7 @@ Compatible with Odoo 19.0 Community Edition.
         # Sequences + static data
         'data/pg_sequence.xml',
         'data/pg_category_data.xml',
+        'data/property_templates_seed.xml',
 
         # Views (one model per file)
         'views/pg_category_views.xml',

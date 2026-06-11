@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!--
+            Generic engineering property templates seeded on first
+            install. noupdate=1 — admin can edit, extend, or replace
+            without subsequent module upgrades clobbering changes.
+
+            Five templates cover the common shapes a generic PLM
+            install needs out of the box:
+              1. Dimensional (assembly)         — w / h / d / weight
+              2. Mechanical (part)              — material / finish / surface
+              3. Electrical (purchased)         — V / A / W / freq
+              4. Fastener (purchased)           — thread / head / drive
+              5. Vendor Reference (purchased)   — MPN / lead / datasheet
+
+            Item types that don't match a template's item_type
+            (document / software / service) get no auto-attached
+            templates — admins add their own per-domain templates as
+            needed.
+        -->
+
+        <!-- ═════════════════════════════════════════════════════════════════════
+             Template 1: Dimensional (for assemblies)
+             ═════════════════════════════════════════════════════════════════════ -->
+        <record id="prop_tmpl_generic_dimensional" model="pg.property.template">
+            <field name="name">Dimensional (Generic)</field>
+            <field name="code">DIM_GENERIC</field>
+            <field name="item_type">assembly</field>
+            <field name="description">Width, height, depth, weight — universal envelope properties for assemblies.</field>
+        </record>
+        <record id="prop_fld_dim_width_mm" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_dimensional"/>
+            <field name="key">width_mm</field>
+            <field name="label">Width (mm)</field>
+            <field name="field_type">integer</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="prop_fld_dim_height_mm" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_dimensional"/>
+            <field name="key">height_mm</field>
+            <field name="label">Height (mm)</field>
+            <field name="field_type">integer</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="prop_fld_dim_depth_mm" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_dimensional"/>
+            <field name="key">depth_mm</field>
+            <field name="label">Depth (mm)</field>
+            <field name="field_type">integer</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="prop_fld_dim_weight_g" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_dimensional"/>
+            <field name="key">weight_g</field>
+            <field name="label">Weight (g)</field>
+            <field name="field_type">float</field>
+            <field name="sequence">40</field>
+        </record>
+
+        <!-- ═════════════════════════════════════════════════════════════════════
+             Template 2: Mechanical (for parts)
+             ═════════════════════════════════════════════════════════════════════ -->
+        <record id="prop_tmpl_generic_mechanical" model="pg.property.template">
+            <field name="name">Mechanical (Generic)</field>
+            <field name="code">MECH_GENERIC</field>
+            <field name="item_type">part</field>
+            <field name="description">Material + finish + surface treatment — typical machined-part properties.</field>
+        </record>
+        <record id="prop_fld_mech_material" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_mechanical"/>
+            <field name="key">material</field>
+            <field name="label">Material</field>
+            <field name="field_type">char</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="prop_fld_mech_finish" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_mechanical"/>
+            <field name="key">finish</field>
+            <field name="label">Finish</field>
+            <field name="field_type">char</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="prop_fld_mech_surface_treatment" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_mechanical"/>
+            <field name="key">surface_treatment</field>
+            <field name="label">Surface Treatment</field>
+            <field name="field_type">char</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="prop_fld_mech_hardness_hrc" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_mechanical"/>
+            <field name="key">hardness_hrc</field>
+            <field name="label">Hardness (HRC)</field>
+            <field name="field_type">float</field>
+            <field name="sequence">40</field>
+        </record>
+
+        <!-- ═════════════════════════════════════════════════════════════════════
+             Template 3: Electrical (for purchased components)
+             ═════════════════════════════════════════════════════════════════════ -->
+        <record id="prop_tmpl_generic_electrical" model="pg.property.template">
+            <field name="name">Electrical (Generic)</field>
+            <field name="code">ELEC_GENERIC</field>
+            <field name="item_type">purchased</field>
+            <field name="description">Voltage, current, power, frequency — passive and active electrical components.</field>
+        </record>
+        <record id="prop_fld_elec_voltage_v" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_electrical"/>
+            <field name="key">voltage_v</field>
+            <field name="label">Voltage (V)</field>
+            <field name="field_type">float</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="prop_fld_elec_current_a" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_electrical"/>
+            <field name="key">current_a</field>
+            <field name="label">Current (A)</field>
+            <field name="field_type">float</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="prop_fld_elec_power_w" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_electrical"/>
+            <field name="key">power_w</field>
+            <field name="label">Power (W)</field>
+            <field name="field_type">float</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="prop_fld_elec_frequency_hz" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_electrical"/>
+            <field name="key">frequency_hz</field>
+            <field name="label">Frequency (Hz)</field>
+            <field name="field_type">float</field>
+            <field name="sequence">40</field>
+        </record>
+        <record id="prop_fld_elec_tolerance_pct" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_electrical"/>
+            <field name="key">tolerance_pct</field>
+            <field name="label">Tolerance (%)</field>
+            <field name="field_type">float</field>
+            <field name="sequence">50</field>
+        </record>
+
+        <!-- ═════════════════════════════════════════════════════════════════════
+             Template 4: Fastener (for purchased components)
+             ═════════════════════════════════════════════════════════════════════ -->
+        <record id="prop_tmpl_generic_fastener" model="pg.property.template">
+            <field name="name">Fastener (Generic)</field>
+            <field name="code">FASTENER_GENERIC</field>
+            <field name="item_type">purchased</field>
+            <field name="description">Thread, length, head type, drive type — screws, bolts, machine fasteners.</field>
+        </record>
+        <record id="prop_fld_fast_thread" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_fastener"/>
+            <field name="key">thread</field>
+            <field name="label">Thread</field>
+            <field name="field_type">char</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="prop_fld_fast_length_mm" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_fastener"/>
+            <field name="key">length_mm</field>
+            <field name="label">Length (mm)</field>
+            <field name="field_type">float</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="prop_fld_fast_head_type" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_fastener"/>
+            <field name="key">head_type</field>
+            <field name="label">Head Type</field>
+            <field name="field_type">selection</field>
+            <field name="selection_options">Hex,Pan,Round,Flat,Button,Socket,Truss,Oval,Other</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="prop_fld_fast_drive_type" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_fastener"/>
+            <field name="key">drive_type</field>
+            <field name="label">Drive Type</field>
+            <field name="field_type">selection</field>
+            <field name="selection_options">Phillips,Slotted,Hex,Torx,Robertson,Pozidriv,Other</field>
+            <field name="sequence">40</field>
+        </record>
+        <record id="prop_fld_fast_material_grade" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_fastener"/>
+            <field name="key">material_grade</field>
+            <field name="label">Material Grade</field>
+            <field name="field_type">char</field>
+            <field name="sequence">50</field>
+        </record>
+
+        <!-- ═════════════════════════════════════════════════════════════════════
+             Template 5: Vendor Reference (for purchased components)
+             ═════════════════════════════════════════════════════════════════════ -->
+        <record id="prop_tmpl_generic_vendor_ref" model="pg.property.template">
+            <field name="name">Vendor Reference (Generic)</field>
+            <field name="code">VENDOR_REF_GENERIC</field>
+            <field name="item_type">purchased</field>
+            <field name="description">MPN + lead time + datasheet — vendor-side identifiers complementing the AVL.</field>
+        </record>
+        <record id="prop_fld_vref_mpn" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_vendor_ref"/>
+            <field name="key">manufacturer_part_number</field>
+            <field name="label">Manufacturer Part Number</field>
+            <field name="field_type">char</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="prop_fld_vref_manufacturer" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_vendor_ref"/>
+            <field name="key">manufacturer</field>
+            <field name="label">Manufacturer</field>
+            <field name="field_type">char</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="prop_fld_vref_lead_time" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_vendor_ref"/>
+            <field name="key">lead_time_days</field>
+            <field name="label">Lead Time (days)</field>
+            <field name="field_type">integer</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="prop_fld_vref_datasheet_url" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_vendor_ref"/>
+            <field name="key">datasheet_url</field>
+            <field name="label">Datasheet URL</field>
+            <field name="field_type">char</field>
+            <field name="sequence">40</field>
+        </record>
+        <record id="prop_fld_vref_rohs" model="pg.property.field">
+            <field name="template_id" ref="prop_tmpl_generic_vendor_ref"/>
+            <field name="key">rohs_compliant</field>
+            <field name="label">RoHS Compliant</field>
+            <field name="field_type">boolean</field>
+            <field name="sequence">50</field>
+        </record>
+
+    </data>
+</odoo>
