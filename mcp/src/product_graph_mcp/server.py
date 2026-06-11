@@ -12,7 +12,7 @@ from .config import Config
 from .odoo_client import OdooClient
 from .tools import (
     catalog, bom, revision as revision_tools, document, release,
-    vendor, eco, rfq, relationship,
+    vendor, eco, rfq, relationship, cad, procurement,
 )
 
 log = logging.getLogger(__name__)
@@ -39,6 +39,10 @@ TOOL_REGISTRY = [
     *rfq.TOOLS,
     # Phase 2 — relationship graph (read-only)
     *relationship.TOOLS,
+    # Phase 2 — CAD connectors (read-only — pull is mutating, UI-only)
+    *cad.TOOLS,
+    # Phase 2 — Procurement (read-only inspection of RFQ-driven requisitions)
+    *procurement.TOOLS,
 ]
 
 
