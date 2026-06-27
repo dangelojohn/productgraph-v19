@@ -261,24 +261,29 @@ class TestProcurementEdgeCases(TransactionCase):
         # The line resolves back to the same product as the RFQ line's item.
         self.assertEqual(req.line_ids.product_id, self.item.product_id)
 
-        # ── Follow-up surface (PG-151 gap): the bridge does NOT add
-        # ``pg_item_id`` or ``pg_rfq_line_id`` Many2one fields on
-        # purchase.requisition.line. Auditors looking up "which pg.item
-        # / pg.rfq produced this PO line" can only traverse:
-        #   purchase.order.line → requisition_line_id
-        #     → requisition_id → reference (string match RFQ name)
-        # That's brittle. File as PG-151-FOLLOWUP if traceability is a
-        # real audit requirement.
+        # ── W003 / R6.1 (PG-151-FOLLOWUP, closed): the bridge now stamps
+        # ``pg_item_id`` and ``pg_rfq_line_id`` back-refs on each
+        # requisition line at award time. Auditors can walk from a PO
+        # line straight to the originating pg.item in two clicks instead
+        # of grep-matching requisition.reference.
         ReqLine = self.env['purchase.requisition.line']
-        self.assertNotIn(
+        self.assertIn(
             'pg_item_id', ReqLine._fields,
-            "If pg_item_id ever lands on purchase.requisition.line, "
-            "tighten this test to assert the back-reference value.",
+            "purchase.requisition.line must carry the W003 pg_item_id "
+            "back-reference.",
         )
-        self.assertNotIn(
+        self.assertIn(
             'pg_rfq_line_id', ReqLine._fields,
-            "If pg_rfq_line_id ever lands on purchase.requisition.line, "
-            "tighten this test to assert the back-reference value.",
+            "purchase.requisition.line must carry the W003 pg_rfq_line_id "
+            "back-reference.",
+        )
+        self.assertEqual(
+            req.line_ids.pg_item_id, self.item,
+            "Bridge must stamp pg_item_id with the RFQ line's item.",
+        )
+        self.assertEqual(
+            req.line_ids.pg_rfq_line_id, rfq.line_ids,
+            "Bridge must stamp pg_rfq_line_id with the source RFQ line.",
         )
 
     # ──────────────────────────────────────────────────────────────────
@@ -309,3 +314,68 @@ class TestProcurementEdgeCases(TransactionCase):
             "requisition into POs as a separate human-mediated step. "
             "Leaked PO ids: %s" % sorted(leaked),
         )
+
+    # ──────────────────────────────────────────────────────────────────
+    # 7. W003 — award stamps pg_item_id + pg_rfq_line_id on every
+    #    requisition line (back-ref closure for procurement traceability).
+    # ──────────────────────────────────────────────────────────────────
+    def test_award_stamps_pg_back_refs(self):
+        item_a = self._make_item('Backref-A')
+        item_b = self._make_item('Backref-B')
+        rfq = self._make_rfq_with_lines([
+            (item_a, 5.0, 1.11),
+            (item_b, 9.0, 2.22),
+        ])
+        rfq.action_send()
+        rfq.action_mark_received()
+        rfq.action_award()
+
+        self.assertTrue(rfq.requisition_id)
+        req_lines = rfq.requisition_id.line_ids
+        self.assertEqual(len(req_lines), 2)
+        # Build a (item, rfq_line) → req_line lookup so order-independent.
+        by_item = {l.pg_item_id: l for l in req_lines}
+        self.assertIn(item_a, by_item)
+        self.assertIn(item_b, by_item)
+        # Each requisition line's pg_rfq_line_id must point at the
+        # matching RFQ line (the one whose item it carries).
+        rfq_a = rfq.line_ids.filtered(lambda l: l.item_id == item_a)
+        rfq_b = rfq.line_ids.filtered(lambda l: l.item_id == item_b)
+        self.assertEqual(by_item[item_a].pg_rfq_line_id, rfq_a)
+        self.assertEqual(by_item[item_b].pg_rfq_line_id, rfq_b)
+
+    # ──────────────────────────────────────────────────────────────────
+    # 8. W003 — pg.item.action_view_purchase_lines returns a domain that
+    #    filters PO lines by the item's pg_item_id back-ref.
+    # ──────────────────────────────────────────────────────────────────
+    def test_smart_button_returns_correct_pos(self):
+        item = self._make_item('Smart-button item')
+        # Build two PO lines pointing at the item via pg_item_id.
+        # sudo() is used for fixture creation so the test isn't gated on
+        # multi-company tax ACLs — the smart-button itself runs as the
+        # form-opening user and still respects record rules.
+        Order = self.env['purchase.order'].sudo()
+        OrderLine = self.env['purchase.order.line'].sudo()
+        po_1 = Order.create({'partner_id': self.partner.id})
+        po_2 = Order.create({'partner_id': self.partner.id})
+        for po in (po_1, po_2):
+            OrderLine.create({
+                'order_id': po.id,
+                'product_id': item.product_id.id,
+                'product_qty': 1.0,
+                'product_uom_id': item.product_id.uom_id.id,
+                'price_unit': 1.0,
+                'pg_item_id': item.id,
+                'name': item.display_name,
+                'date_planned': '2026-12-31 00:00:00',
+            })
+        # The smart-button should report exactly the two we just made.
+        item.invalidate_recordset(['purchase_line_count'])
+        self.assertEqual(
+            item.purchase_line_count, 2,
+            "Smart-button counter must reflect only PO lines with "
+            "pg_item_id == self.id (the W003 back-ref).",
+        )
+        action = item.action_view_purchase_lines()
+        self.assertEqual(action['res_model'], 'purchase.order.line')
+        self.assertIn(('pg_item_id', '=', item.id), action['domain'])

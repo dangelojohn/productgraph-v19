@@ -106,6 +106,14 @@ class PgRfq(models.Model):
                 'product_qty': rfq_line.qty,
                 'product_uom_id': uom.id,
                 'price_unit': bid.unit_price,
+                # W003 / R6.1 — back-refs to close the traceability gap.
+                # `pg_item_id` lands on the requisition line and propagates
+                # to purchase.order.line via a stored related (see
+                # purchase_order_line.py). The bridge stamps both so future
+                # PO defect-attribution is a 2-click walk, not a 7-click
+                # string-match on requisition.reference.
+                'pg_item_id': rfq_line.item_id.id,
+                'pg_rfq_line_id': rfq_line.id,
             }
             if 'qty_ordered' in ReqLine._fields:
                 line_vals['qty_ordered'] = 0.0
