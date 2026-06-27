@@ -6,3 +6,4 @@ from . import test_w033_auto_rfq_cap_cooldown
 from . import test_w059_moq_shortfall
 from . import test_w060_dual_source_award
 from . import test_w062_buyer_id
+from . import test_w078_source_type

@@ -76,6 +76,11 @@ class PgRfq(models.Model):
             'company_id': self.company_id.id,
             'reference': self.name,
             'user_id': self.requestor_id.id,
+            # W078 (R6.14) — stamp source-type intent + back-ref on the
+            # requisition so downstream procurement can filter
+            # subcontract/dropship backlog without walking back to pg.rfq.
+            'pg_source_type': self.source_type,
+            'pg_rfq_id': self.id,
         }
         # Older purchase_requisition versions don't have requisition_type;
         # set it only when the field is present to stay portable.
@@ -193,15 +198,44 @@ class PgRfq(models.Model):
                 ReqLine.create(line_vals)
 
         self.requisition_id = requisition.id
+        # W078 — explain the routing on the RFQ chatter so the buyer
+        # sees which downstream artifact the bridge produced and what
+        # action (if any) is still owed by the planner.
+        if self.source_type == 'subcontract':
+            tail = _(
+                " <b>Subcontract</b> intent — planner converts the "
+                "requisition into an mrp.production (subcontract type) "
+                "via the Create Subcontract MO button on the "
+                "requisition. The bridge does NOT auto-create the MO."
+            )
+        elif self.source_type == 'dropship':
+            tail = _(
+                " <b>Dropship</b> intent — procurement flips the PO to "
+                "dropship routing when converting the requisition; "
+                "the requisition is tagged so the queue filter picks "
+                "it up."
+            )
+        else:
+            tail = ''
         self.message_post(
-            body=_("Purchase requisition %s created with %d line(s).")
-            % (requisition.display_name, len(requisition.line_ids)),
+            body=_("Purchase requisition %s created with %d line(s).%s")
+            % (requisition.display_name, len(requisition.line_ids), tail),
             subtype_xmlid='mail.mt_log_note',
         )
+        # Mirror the routing intent onto the requisition chatter so the
+        # downstream planner sees it without bouncing back to pg.rfq.
+        if self.source_type != 'purchase':
+            requisition.message_post(
+                body=_(
+                    "ProductGraph: requisition routed as <b>%s</b> "
+                    "(source pg.rfq %s)."
+                ) % (self.source_type, self.display_name),
+                subtype_xmlid='mail.mt_log_note',
+            )
         _logger.info(
-            "ProductGraph: RFQ %s → purchase.requisition %s (%d lines)",
+            "ProductGraph: RFQ %s → purchase.requisition %s (%d lines, source_type=%s)",
             self.display_name, requisition.display_name,
-            len(requisition.line_ids),
+            len(requisition.line_ids), self.source_type,
         )
 
     # ──────────────────────────────────────────────────────────────────

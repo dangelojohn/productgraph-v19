@@ -121,6 +121,32 @@ class PgRfq(models.Model):
         required=True, default=lambda self: self.env.company,
     )
 
+    # W078 (R6.14, 2026-06-27) — source-type selector. Until now every
+    # awarded RFQ flowed through the same purchase.requisition path,
+    # which bypassed the AVL whenever the buyer's actual intent was
+    # subcontract or dropship. With source_type set on the header the
+    # procurement bridge can route to the appropriate downstream
+    # artifact (still a requisition in this phase — subcontract MO
+    # creation is the planner's choice via a button, NOT something
+    # the bridge does automatically). The field is required + tracked
+    # so the audit log captures every change.
+    source_type = fields.Selection(
+        [
+            ('purchase', 'Purchase'),
+            ('subcontract', 'Subcontract'),
+            ('dropship', 'Dropship'),
+        ],
+        string='Source Type',
+        default='purchase', required=True, tracking=True, index=True,
+        help='Routing intent for the awarded RFQ. Purchase = standard '
+             'AVL-fed PO. Subcontract = hardware fabrication handed '
+             'to a vendor (planner converts the staged requisition '
+             'into an mrp.production with subcontract type via a '
+             'button). Dropship = vendor ships directly to the '
+             'customer; bridge tags the requisition for procurement '
+             'to flip the PO accordingly.',
+    )
+
     # ──────────────────────────────────────────────────────────────────
     # Compute
     # ──────────────────────────────────────────────────────────────────
@@ -266,12 +292,30 @@ class PgRfq(models.Model):
                 'state': 'awarded',
                 'awarded_on': fields.Datetime.now(),
             })
+            # W078 (R6.14) — audit which source_type was chosen per bid
+            # so downstream defect/quality attribution can ask "was this
+            # bought, subcontracted, or dropshipped?" without re-deriving
+            # from the requisition/PO chain.
+            bid_source_map = [
+                {
+                    'bid_id': b.id,
+                    'vendor_id': b.vendor_id.id,
+                    'awarded_qty': b.awarded_qty,
+                    'source_type': rec.source_type,
+                }
+                for line in rec.line_ids
+                for b in line.bid_ids.filtered('is_awarded')
+            ]
             rec.env['pg.audit.log'].sudo()._log(
                 rec, 'state_change',
                 from_state='received', to_state='awarded',
-                notes='AVL pricing refreshed from %d bid(s) across %d line(s)' % (
-                    total_awards, len(rec.line_ids),
+                notes='AVL pricing refreshed from %d bid(s) across %d line(s); source_type=%s' % (
+                    total_awards, len(rec.line_ids), rec.source_type,
                 ),
+                payload={
+                    'source_type': rec.source_type,
+                    'awarded_bids': bid_source_map,
+                },
             )
             rec.message_post(
                 body=_("RFQ <b>awarded</b>. AVL refreshed from %(n)d bid(s) "

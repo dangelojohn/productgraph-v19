@@ -15,6 +15,8 @@
                 <field name="state" widget="badge"/>
                 <field name="item_id" optional="hide"/>
                 <field name="auto_drafted" optional="hide" widget="boolean_toggle"/>
+                <!-- W078 (R6.14) — source-type badge for at-a-glance triage. -->
+                <field name="source_type" widget="badge" optional="show"/>
                 <field name="requestor_id"/>
                 <!-- W062 (R6.16) — buyer column for multi-buyer triage. -->
                 <field name="buyer_id" optional="show"/>
@@ -57,6 +59,14 @@
                         domain="[('buyer_id', '=', uid)]"/>
                 <filter name="filter_auto_drafted" string="Auto-Drafted"
                         domain="[('auto_drafted', '=', True)]"/>
+                <!-- W078 (R6.14) — source-type quick filters. -->
+                <separator/>
+                <filter name="filter_src_purchase" string="Purchase"
+                        domain="[('source_type', '=', 'purchase')]"/>
+                <filter name="filter_src_subcontract" string="Subcontract"
+                        domain="[('source_type', '=', 'subcontract')]"/>
+                <filter name="filter_src_dropship" string="Dropship"
+                        domain="[('source_type', '=', 'dropship')]"/>
                 <group>
                     <filter name="group_state" string="State"
                             context="{'group_by': 'state'}"/>
@@ -65,6 +75,9 @@
                     <!-- W062 (R6.16) — group by buyer for queue review. -->
                     <filter name="group_buyer" string="Buyer"
                             context="{'group_by': 'buyer_id'}"/>
+                    <!-- W078 (R6.14) — group by source type for backlog. -->
+                    <filter name="group_source_type" string="Source Type"
+                            context="{'group_by': 'source_type'}"/>
                 </group>
             </search>
         </field>
@@ -117,6 +130,9 @@
                             <field name="sent_on" readonly="1"/>
                             <field name="awarded_on" readonly="1"/>
                             <field name="auto_drafted" readonly="1"/>
+                            <!-- W078 (R6.14) — source-type routing. -->
+                            <field name="source_type"
+                                   readonly="state in ('awarded', 'cancelled')"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                     </group>
