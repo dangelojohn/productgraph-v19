@@ -315,6 +315,7 @@ class PgRfq(models.Model):
                 "pg.item %s has no category — auto-RFQ skipped.",
                 item.display_name,
             )
+            self._notify_unsourced_item(item, reason='no_category')
             return False
         Vendor = self.env['pg.vendor']
         category_vendors = Vendor.search([
@@ -328,6 +329,7 @@ class PgRfq(models.Model):
                 "vendors — auto-RFQ skipped.",
                 item.display_name, item.category_id.complete_name,
             )
+            self._notify_unsourced_item(item)
             return False
         title = _("Auto-RFQ for %s") % (item.part_number or item.display_name)
         reason = _(
@@ -377,3 +379,93 @@ class PgRfq(models.Model):
             },
         )
         return rfq
+
+    # ──────────────────────────────────────────────────────────────────
+    # R6.4 / W013 — Sourcing Inbox activity for unsourced items
+    # ──────────────────────────────────────────────────────────────────
+    UNSOURCED_ACTIVITY_SUMMARY = 'Unsourced item — needs vendor'
+
+    @api.model
+    def _notify_unsourced_item(self, item, reason='no_category_vendor'):
+        """Create a mail.activity on the pg.item flagging the sourcing gap.
+
+        Replaces the silent log line (R6.4 finding) so the engineer who owns
+        the item, or a fallback engineering-group user, gets an addressable
+        inbox marker instead of a buried warning.
+
+        Idempotent: if there's already an open activity with the same summary
+        on this item, returns without creating a duplicate. This keeps the
+        daily auto-RFQ cron from spamming.
+
+        Args:
+            item: pg.item record to flag.
+            reason: 'no_category_vendor' (default) or 'no_category'. Drives
+                the chatter note body so the engineer sees which gap it is.
+        """
+        if not item:
+            return
+        Activity = self.env['mail.activity']
+        # Idempotency check — open activity for this item with our summary.
+        existing = Activity.sudo().search([
+            ('res_model', '=', 'pg.item'),
+            ('res_id', '=', item.id),
+            ('summary', '=', self.UNSOURCED_ACTIVITY_SUMMARY),
+            ('date_deadline', '>=', fields.Date.context_today(self)),
+        ], limit=1)
+        if existing:
+            return
+        # Resolve assignee: prefer item.responsible_id, else first engineer.
+        assignee = item.responsible_id
+        if not assignee:
+            eng_group = self.env.ref(
+                'product_graph_base.group_pg_engineer',
+                raise_if_not_found=False,
+            )
+            if eng_group:
+                # Odoo 19: query the inverse rather than .users.
+                assignee = self.env['res.users'].search(
+                    [('group_ids', 'in', eng_group.id)], limit=1,
+                )
+        if not assignee:
+            _logger.warning(
+                "No assignee for unsourced item %s — activity skipped.",
+                item.display_name,
+            )
+            return
+        activity_type = self.env.ref(
+            'mail.mail_activity_data_todo', raise_if_not_found=False,
+        )
+        if not activity_type:
+            _logger.warning(
+                "mail.mail_activity_data_todo missing — cannot schedule "
+                "unsourced-item activity for %s.", item.display_name,
+            )
+            return
+        if reason == 'no_category':
+            note = _(
+                "Auto-RFQ cron could not draft an RFQ for this item: it has "
+                "no category, so candidate vendors cannot be selected. "
+                "Assign a category on the item to unblock sourcing."
+            )
+        else:
+            cat = item.category_id.complete_name if item.category_id else _('(none)')
+            note = _(
+                "Auto-RFQ cron found no qualified vendor for this item's "
+                "category (%(cat)s). Either qualify a vendor in that "
+                "category or move the item to a category that has one."
+            ) % {'cat': cat}
+        item.sudo().activity_schedule(
+            activity_type_id=activity_type.id,
+            user_id=assignee.id,
+            summary=self.UNSOURCED_ACTIVITY_SUMMARY,
+            note=note,
+        )
+        self.env['pg.audit.log'].sudo()._log(
+            item, 'other',
+            notes=_('Unsourced-item activity scheduled for %s') % assignee.name,
+            payload={
+                'item_id': item.id,
+                'reason': reason,
+                'assignee_id': assignee.id,
+            },
+        )

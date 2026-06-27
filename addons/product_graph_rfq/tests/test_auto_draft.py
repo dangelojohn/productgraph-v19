@@ -133,6 +133,82 @@ class TestPgRfqAutoDraft(TransactionCase):
         rfq = self.env['pg.rfq'].search([('item_id', '=', item.id)])
         self.assertFalse(rfq, 'No RFQ should be drafted when no category vendor exists.')
 
+    # ──────────────────────────────────────────────────────────────────
+    # W013 / R6.4 — unsourced-item activity (Sourcing Inbox)
+    # ──────────────────────────────────────────────────────────────────
+    def test_unsourced_no_category_vendor_creates_activity(self):
+        """Auto-RFQ failure on no-qualified-vendor must surface as an
+        mail.activity on the pg.item, not just a buried log line."""
+        item = self._make_purchased_item('ActivityNoVendor')
+        # No vendors qualified in this category.
+        self.env['pg.rfq']._cron_auto_draft_missing_rfqs()
+        activities = self.env['mail.activity'].search([
+            ('res_model', '=', 'pg.item'),
+            ('res_id', '=', item.id),
+            ('summary', '=', 'Unsourced item — needs vendor'),
+        ])
+        self.assertEqual(
+            len(activities), 1,
+            'Auto-RFQ cron should create exactly one unsourced-item activity.',
+        )
+        # Assignee should be the item's responsible engineer (admin in tests).
+        self.assertEqual(activities.user_id, item.responsible_id)
+
+    def test_unsourced_activity_idempotent_across_cron_runs(self):
+        """Re-running the daily cron must NOT create duplicate activities for
+        the same item."""
+        item = self._make_purchased_item('IdempotentActivity')
+        self.env['pg.rfq']._cron_auto_draft_missing_rfqs()
+        self.env['pg.rfq']._cron_auto_draft_missing_rfqs()
+        self.env['pg.rfq']._cron_auto_draft_missing_rfqs()
+        activities = self.env['mail.activity'].search([
+            ('res_model', '=', 'pg.item'),
+            ('res_id', '=', item.id),
+            ('summary', '=', 'Unsourced item — needs vendor'),
+        ])
+        self.assertEqual(
+            len(activities), 1,
+            'Cron must be idempotent — only one open activity per item.',
+        )
+
+    def test_unsourced_activity_skipped_when_vendor_qualifies(self):
+        """If a qualified category-vendor IS present, no activity should fire."""
+        item = self._make_purchased_item('HasCategoryVendor')
+        self._make_vendor('SOURCED', qualified=True, categories=[self.cat])
+        self.env['pg.rfq']._cron_auto_draft_missing_rfqs()
+        activities = self.env['mail.activity'].search([
+            ('res_model', '=', 'pg.item'),
+            ('res_id', '=', item.id),
+            ('summary', '=', 'Unsourced item — needs vendor'),
+        ])
+        self.assertFalse(
+            activities,
+            'No unsourced activity should be created when a category vendor exists.',
+        )
+
+    def test_sourcing_inbox_action_domain_filters_unsourced(self):
+        """The Sourcing Inbox action's domain must return unsourced purchased
+        items in engineering/released and EXCLUDE items with a primary vendor."""
+        # Item A: purchased, engineering, NO vendor → should appear.
+        item_a = self._make_purchased_item('InboxUnsourcedA')
+        # Item B: purchased, engineering, HAS preferred qualified vendor → excluded.
+        item_b = self._make_purchased_item('InboxSourcedB')
+        v = self._make_vendor('INBOXV', qualified=True, categories=[self.cat])
+        self._make_part(item_b, v, vpn='VPN-B', preferred=True)
+        action = self.env.ref('product_graph_rfq.action_pg_sourcing_inbox')
+        # action.domain is a string — eval it the way Odoo does.
+        from odoo.tools.safe_eval import safe_eval
+        domain = safe_eval(action.domain)
+        ids_in_inbox = self.env['pg.item'].search(domain).ids
+        self.assertIn(
+            item_a.id, ids_in_inbox,
+            'Unsourced engineering-state purchased item must appear in inbox.',
+        )
+        self.assertNotIn(
+            item_b.id, ids_in_inbox,
+            'Item with qualified preferred vendor must NOT appear in inbox.',
+        )
+
     def test_auto_draft_idempotent(self):
         item = self._make_purchased_item('Idempotent')
         self._make_vendor('CAT1', qualified=True, categories=[self.cat])

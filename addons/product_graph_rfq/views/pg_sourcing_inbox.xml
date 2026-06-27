@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- W013 / R6.4 — Sourcing Inbox: purchased items without a qualified
+         vendor that are at or near release. The auto-RFQ cron flags these
+         via mail.activity; this view is the buyer's queue surface. -->
+
+    <record id="view_pg_sourcing_inbox_list" model="ir.ui.view">
+        <field name="name">pg.item.sourcing.inbox.list</field>
+        <field name="model">pg.item</field>
+        <field name="arch" type="xml">
+            <list string="Sourcing Inbox"
+                  decoration-warning="state == 'engineering'"
+                  decoration-danger="state == 'released'">
+                <field name="part_number"/>
+                <field name="name"/>
+                <field name="category_id"/>
+                <field name="state" widget="badge"/>
+                <field name="responsible_id"/>
+                <field name="activity_ids" widget="list_activity"/>
+                <field name="write_date" string="Last Updated"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pg_sourcing_inbox_kanban" model="ir.ui.view">
+        <field name="name">pg.item.sourcing.inbox.kanban</field>
+        <field name="model">pg.item</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="category_id" class="o_kanban_small_column"
+                    sample="1">
+                <field name="part_number"/>
+                <field name="name"/>
+                <field name="state"/>
+                <field name="responsible_id"/>
+                <field name="category_id"/>
+                <field name="activity_ids"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click p-2">
+                            <strong><field name="part_number"/></strong>
+                            <div class="text-muted">
+                                <field name="name"/>
+                            </div>
+                            <div class="mt-2">
+                                <field name="state" widget="badge"/>
+                            </div>
+                            <div class="o_kanban_record_bottom mt-2">
+                                <div class="oe_kanban_bottom_left">
+                                    <field name="activity_ids" widget="kanban_activity"/>
+                                </div>
+                                <div class="oe_kanban_bottom_right">
+                                    <field name="responsible_id" widget="many2one_avatar_user"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_pg_sourcing_inbox_search" model="ir.ui.view">
+        <field name="name">pg.item.sourcing.inbox.search</field>
+        <field name="model">pg.item</field>
+        <field name="arch" type="xml">
+            <search string="Sourcing Inbox">
+                <field name="part_number"/>
+                <field name="name"/>
+                <field name="category_id"/>
+                <field name="responsible_id"/>
+                <filter name="filter_engineering" string="Engineering"
+                        domain="[('state', '=', 'engineering')]"/>
+                <filter name="filter_released" string="Released"
+                        domain="[('state', '=', 'released')]"/>
+                <filter name="filter_needs_attention" string="Needs Attention"
+                        domain="[('activity_ids.summary', '=', 'Unsourced item — needs vendor')]"/>
+                <filter name="filter_mine" string="My Items"
+                        domain="[('responsible_id', '=', uid)]"/>
+                <group>
+                    <filter name="group_category" string="Category"
+                            context="{'group_by': 'category_id'}"/>
+                    <filter name="group_state" string="Engineering State"
+                            context="{'group_by': 'state'}"/>
+                    <filter name="group_responsible" string="Responsible"
+                            context="{'group_by': 'responsible_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pg_sourcing_inbox" model="ir.actions.act_window">
+        <field name="name">Sourcing Inbox</field>
+        <field name="res_model">pg.item</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="view_ids" eval="[
+            (5, 0, 0),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_pg_sourcing_inbox_kanban')}),
+            (0, 0, {'view_mode': 'list',   'view_id': ref('view_pg_sourcing_inbox_list')}),
+        ]"/>
+        <field name="search_view_id" ref="view_pg_sourcing_inbox_search"/>
+        <field name="domain">[
+            ('item_type', '=', 'purchased'),
+            ('state', 'in', ('engineering', 'released')),
+            ('active', '=', True),
+            ('primary_vendor_id', '=', False),
+        ]</field>
+        <field name="context">{'search_default_filter_needs_attention': 0}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Nothing to source — every purchased item near release has a
+                qualified vendor.
+            </p>
+            <p>
+                This inbox lists purchased items in
+                <strong>engineering</strong> or <strong>released</strong>
+                state that have no qualified vendor in the AVL. The daily
+                auto-RFQ cron also drops a <em>"Unsourced item — needs
+                vendor"</em> activity on each so they show up in your
+                Activities inbox too.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_pg_sourcing_inbox"
+              name="Inbox"
+              parent="product_graph_vendor.menu_pg_vendor_root"
+              action="action_pg_sourcing_inbox"
+              sequence="5"/>
+
+</odoo>
