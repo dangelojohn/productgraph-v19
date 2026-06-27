@@ -44,6 +44,41 @@ class MrpProduction(models.Model):
         readonly=True,
     )
 
+    # ─────────────────────────────────────────────────────────────────
+    # W081 (R4.S5) — stored compute: is this MO on a superseded
+    # engineering revision?
+    # ─────────────────────────────────────────────────────────────────
+    #
+    # JTBD: "Planner sees 'your revision is older than latest' at a
+    # glance." Without this flag, a planner reviewing the MO queue
+    # has no quick way to know that a MO created against revision A
+    # is now obsolete because revision B has been released.
+    #
+    # Computation: True iff `pg_release_id.revision_id.state ==
+    # 'superseded'`. Stored so a list-view decoration / kanban badge
+    # can read it cheaply (one column, no per-row resolver hit).
+    # Depends include the revision state so the compute auto-refires
+    # when an upstream pg.revision is superseded (Odoo's @api.depends
+    # walks the m2o.m2o.field chain on touched records).
+    pg_is_on_superseded_rev = fields.Boolean(
+        string='On Superseded Revision',
+        compute='_compute_pg_is_on_superseded_rev',
+        store=True,
+        index=True,
+        help='True iff this MO was created from a pg.release whose '
+             'pg.revision.state is now "superseded". Drives the red '
+             'list-view decoration + kanban badge that warns the '
+             'planner the MO is running an obsolete revision.',
+    )
+
+    @api.depends('pg_release_id.revision_id.state')
+    def _compute_pg_is_on_superseded_rev(self):
+        for mo in self:
+            rev = mo.pg_release_id.revision_id
+            mo.pg_is_on_superseded_rev = bool(
+                rev and rev.state == 'superseded'
+            )
+
     # ═════════════════════════════════════════════════════════════════════════
     # Create override — stamp traceability from bom_id (Option A)
     # ═════════════════════════════════════════════════════════════════════════

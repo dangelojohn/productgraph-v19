@@ -33,6 +33,45 @@
             <xpath expr="//field[@name='bom_id']" position="after">
                 <field name="pg_revision_code" string="Eng Rev" optional="show"
                        groups="product_graph_base.group_pg_viewer"/>
+                <!-- W081 — superseded-revision warning column. -->
+                <field name="pg_is_on_superseded_rev"
+                       string="Superseded?"
+                       optional="show"
+                       decoration-danger="pg_is_on_superseded_rev == True"
+                       groups="product_graph_base.group_pg_viewer"/>
+            </xpath>
+            <!-- W081 — paint the whole row red when the MO is running
+                 against a superseded revision. Layered as an attribute
+                 update so any other decoration the inheriting tree
+                 carries (kitchen / MI) still composes. -->
+            <xpath expr="//list" position="attributes">
+                <attribute name="decoration-danger">pg_is_on_superseded_rev == True</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- W081 — Kanban badge on the MO kanban card. Hooks into the
+         standard kanban view (mrp.mrp_production_kanban_view) and
+         injects a small "SUPERSEDED REV" pill below the title when
+         the MO is running an obsolete revision. Pill is span-styled
+         (no extra asset bundle needed) and gated on the boolean so
+         the kanban arch parses cleanly when no MO is flagged. -->
+    <record id="view_mrp_production_kanban_pg_superseded"
+            model="ir.ui.view">
+        <field name="name">mrp.production.kanban.pg_superseded</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_kanban_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//templates" position="before">
+                <field name="pg_is_on_superseded_rev"/>
+            </xpath>
+            <xpath expr="//div[hasclass('o_kanban_record_title')]"
+                   position="after">
+                <div t-if="record.pg_is_on_superseded_rev.raw_value"
+                     class="badge text-bg-danger"
+                     style="margin-top:2px;">
+                    SUPERSEDED REV
+                </div>
             </xpath>
         </field>
     </record>
