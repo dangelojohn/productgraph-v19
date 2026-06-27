@@ -38,6 +38,30 @@
                     <field name="open_rfq_line_count" widget="statinfo"
                            string="RFQ Lines"/>
                 </button>
+                <!-- W061 (R6.17) — vendor performance smart buttons.
+                     Three new clicks for awarding-context view:
+                       * total open POs (broader than W022's exposure)
+                       * late POs in flight
+                       * defect rate over 30d (gated on partner_id;
+                         silently 0 when mi.check is not installed). -->
+                <button name="action_view_open_pos_all" type="object"
+                        class="oe_stat_button" icon="fa-truck"
+                        invisible="not partner_id">
+                    <field name="open_po_count_all" widget="statinfo"
+                           string="Open POs (all)"/>
+                </button>
+                <button name="action_view_late_pos" type="object"
+                        class="oe_stat_button" icon="fa-clock-o"
+                        invisible="not partner_id">
+                    <field name="late_po_count" widget="statinfo"
+                           string="Late"/>
+                </button>
+                <button name="action_view_defect_lines_30d" type="object"
+                        class="oe_stat_button" icon="fa-bug"
+                        invisible="not partner_id">
+                    <field name="defect_rate_30d" widget="statinfo"
+                           string="Defect rate (30d)"/>
+                </button>
             </xpath>
         </field>
     </record>
