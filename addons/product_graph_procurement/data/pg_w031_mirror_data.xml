@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  W031 (R6.6) — pg.vendor.part -> product.supplierinfo mirror.
+
+  ICP default (False) and daily reconciler cron. The cron is harmless
+  when the ICP is off (returns immediately).
+-->
+<odoo noupdate="1">
+
+    <!-- ICP gate: default OFF. Set to 'True' in
+         Settings > Technical > Parameters > System Parameters
+         once the team is ready to opt in. -->
+    <record id="ir_config_param_w031_mirror_enabled"
+            model="ir.config_parameter">
+        <field name="key">productgraph.mirror_vendor_part_to_supplierinfo</field>
+        <field name="value">False</field>
+    </record>
+
+    <record id="ir_cron_w031_reconcile_supplierinfo" model="ir.cron">
+        <field name="name">ProductGraph: W031 reconcile supplierinfo mirror</field>
+        <field name="model_id" ref="product_graph_base.model_pg_vendor_part"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_w031_reconcile_supplierinfo()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+
+</odoo>
