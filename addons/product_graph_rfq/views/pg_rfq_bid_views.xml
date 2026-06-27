@@ -5,7 +5,10 @@
         <field name="name">pg.rfq.bid.list</field>
         <field name="model">pg.rfq.bid</field>
         <field name="arch" type="xml">
-            <list decoration-success="is_awarded">
+            <!-- W032 — decoration-muted on expired so stale bids fade
+                 visually while staying on the row for audit. -->
+            <list decoration-success="is_awarded"
+                  decoration-muted="is_expired">
                 <field name="rfq_id"/>
                 <field name="line_id"/>
                 <field name="vendor_id"/>
@@ -16,6 +19,8 @@
                 <field name="lead_time_days"/>
                 <field name="score" optional="show"/>
                 <field name="valid_until"/>
+                <field name="is_expired" widget="boolean_toggle" optional="show"
+                       readonly="1"/>
                 <field name="is_awarded" widget="boolean_toggle"/>
                 <field name="rfq_state" widget="badge" optional="hide"/>
             </list>

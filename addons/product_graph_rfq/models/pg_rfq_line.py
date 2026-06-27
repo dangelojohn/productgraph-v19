@@ -79,16 +79,20 @@ class PgRfqLine(models.Model):
         for rec in self:
             rec.awarded_bid_id = rec.bid_ids.filtered('is_awarded')[:1]
 
-    @api.depends('bid_ids.score', 'bid_ids.unit_price')
+    @api.depends('bid_ids.score', 'bid_ids.unit_price', 'bid_ids.is_expired')
     def _compute_recommended(self):
         for rec in self:
-            if not rec.bid_ids:
+            # W032 (R6.7) — drop expired bids from the recommendation pool.
+            # The bid record stays for audit; it just can't be the suggested
+            # winner once the quote went stale.
+            candidates = rec.bid_ids.filtered(lambda b: not b.is_expired)
+            if not candidates:
                 rec.recommended_bid_id = False
                 continue
             # Primary sort: score (lower=better). Tiebreaker: unit_price
             # (lower=better). Python's sort is stable so the tuple does
             # both passes in one shot.
-            ranked = rec.bid_ids.sorted(
+            ranked = candidates.sorted(
                 lambda b: (b.score, b.unit_price)
             )
             rec.recommended_bid_id = ranked[:1]
