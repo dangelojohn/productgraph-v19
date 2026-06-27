@@ -89,7 +89,16 @@ class PgVendorPartMirror(models.Model):
     # Mirror write / sync
     # ──────────────────────────────────────────────────────────────────
     def _w031_build_supplierinfo_vals(self):
-        """Build the supplierinfo vals dict from this vendor-part."""
+        """Build the supplierinfo vals dict from this vendor-part.
+
+        W077 (R6.6 extension, 2026-06-27) — `product_code` is the
+        canonical mirror target for UBL `SellersItemIdentification`
+        in EDI sends. We ALWAYS set it when `vendor_part_number` is
+        populated, and we OMIT the key when the source is empty so
+        the diff in `_w031_sync_mirror` won't blank a pre-existing
+        admin-set product_code. The mirror remains one-way: we never
+        read product_code back into pg.vendor.part.
+        """
         self.ensure_one()
         product = self.item_id.product_id
         vals = {
@@ -98,9 +107,14 @@ class PgVendorPartMirror(models.Model):
             'price': self.unit_price_hint or 0.0,
             'min_qty': self.moq or 0.0,
             'delay': self.lead_time_days or 0,
-            'product_code': self.vendor_part_number or False,
             'x_from_pg_vendor_part_id': self.id,
         }
+        # W077 — only emit product_code when we actually have a vendor
+        # part number to mirror. Sending False would wipe a manually
+        # set product_code on the tagged row, which the EDI layer
+        # then can't recover from.
+        if self.vendor_part_number:
+            vals['product_code'] = self.vendor_part_number
         if self.currency_id:
             vals['currency_id'] = self.currency_id.id
         if 'product_id' in self.env['product.supplierinfo']._fields:
