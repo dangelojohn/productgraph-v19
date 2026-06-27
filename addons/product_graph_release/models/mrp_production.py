@@ -125,3 +125,65 @@ class MrpProduction(models.Model):
         return self.with_context(_pg_release_bypass=True).write({
             'pg_release_id': release.id,
         })
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # W082 (R4.S1) — daily race-backfill cron for pg_release_id
+    # ═════════════════════════════════════════════════════════════════════════
+    #
+    # JTBD: "MOs created during the release window get retroactively
+    # stamped."
+    #
+    # The race window: pg.release.action_execute_release() runs in
+    # one transaction; at the same instant a sales-side cron / human
+    # may be creating mrp.production rows whose bom_id matches the
+    # release's target BOM. The create() override above stamps from
+    # a snapshot SELECT taken before MO insertion, so an MO created
+    # AFTER the snapshot but BEFORE the release commit can land
+    # without a pg_release_id.
+    #
+    # This cron sweeps daily: any MO with bom_id IS NOT NULL AND
+    # pg_release_id IS NULL whose bom_id matches a completed release
+    # gets stamped. Idempotent by design (skips already-stamped MOs)
+    # so re-running is safe.
+    @api.model
+    def _cron_backfill_pg_release_id(self, limit=500):
+        """Daily race-window backfill for pg_release_id stamping.
+
+        Walks mrp.production WHERE pg_release_id IS NULL AND
+        bom_id IS NOT NULL, joins to pg.release on bom_id, stamps
+        the matching completed release. Bounded by `limit` to keep
+        the cron cell short; if more remain the next run picks them
+        up (idempotent).
+        """
+        # Stage 1: candidate MOs.
+        candidates = self.search([
+            ('pg_release_id', '=', False),
+            ('bom_id', '!=', False),
+        ], limit=limit)
+        if not candidates:
+            return 0
+        # Stage 2: bulk-fetch matching releases. One query per bom_id
+        # set; last-completed wins per bom_id (matches create()
+        # override semantics).
+        bom_ids = candidates.mapped('bom_id').ids
+        releases = self.env['pg.release'].sudo().search([
+            ('mrp_bom_id', 'in', bom_ids),
+            ('state', '=', 'completed'),
+        ])
+        release_by_bom = {}
+        for rel in releases:
+            release_by_bom[rel.mrp_bom_id.id] = rel.id
+        stamped = 0
+        for mo in candidates:
+            release_id = release_by_bom.get(mo.bom_id.id)
+            if not release_id:
+                continue
+            # Idempotent: another worker may have stamped between
+            # search and write. Skip if so.
+            if mo.pg_release_id:
+                continue
+            mo.with_context(_pg_release_bypass=True).write({
+                'pg_release_id': release_id,
+            })
+            stamped += 1
+        return stamped

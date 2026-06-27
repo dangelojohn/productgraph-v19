@@ -24,5 +24,29 @@
             <field name="active" eval="True"/>
         </record>
 
+        <!--
+            W082 (R4.S1) — race-window backfill for pg_release_id.
+
+            MOs created between the release flow's pre-snapshot
+            SELECT and its commit can land with bom_id set but
+            pg_release_id empty. This daily sweep stamps them so
+            traceability + W081 supersession badge cover the gap.
+
+            Idempotent: skips MOs already stamped + skips MOs
+            without a matching completed release. Bounded by
+            limit=500 in the handler to keep the cron cell short.
+        -->
+        <record id="ir_cron_pg_release_backfill_mo"
+                model="ir.cron">
+            <field name="name">ProductGraph: Backfill MO pg_release_id (W082)</field>
+            <field name="model_id" ref="mrp.model_mrp_production"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_backfill_pg_release_id()</field>
+            <field name="user_id" ref="base.user_root"/>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
     </data>
 </odoo>
