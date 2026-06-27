@@ -132,6 +132,13 @@ class PgRfqLine(models.Model):
     rfq_state = fields.Selection(
         related='rfq_id.state', store=True, index=True, string='RFQ State',
     )
+    # W062 (R6.16, 2026-06-27) — buyer mirrored from header so line-level
+    # views ("RFQ lines I own") can filter against the same scope without
+    # joining back to pg.rfq. Stored + indexed so the search is fast.
+    buyer_id = fields.Many2one(
+        'res.users', related='rfq_id.buyer_id',
+        store=True, index=True, string='Buyer',
+    )
 
     @api.depends('bid_ids.unit_price')
     def _compute_bid_stats(self):

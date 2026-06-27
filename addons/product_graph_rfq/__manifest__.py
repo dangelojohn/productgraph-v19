@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – RFQ Workflow',
-    'version': '19.0.1.8.0',
+    'version': '19.0.1.9.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Engineering-driven Request-for-Quote workflow that feeds AVL '
                'pricing from real vendor bids',

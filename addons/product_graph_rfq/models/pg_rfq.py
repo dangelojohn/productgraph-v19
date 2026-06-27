@@ -83,6 +83,23 @@ class PgRfq(models.Model):
         'res.users', string='Requesting Engineer',
         required=True, default=lambda self: self.env.user, tracking=True,
     )
+    # W062 (R6.16, 2026-06-27) — buyer ownership for multi-buyer teams.
+    # The engineer who REQUESTED the RFQ (requestor_id) is often a
+    # different person from the buyer who OWNS the sourcing decision
+    # and clicks Award. Keeping the two fields separate makes the
+    # "RFQs I own as a buyer" filter precise (vs the "RFQs I requested
+    # as an engineer" filter on requestor_id). Defaults to the
+    # creating user so single-buyer orgs continue to work without
+    # configuration. Tracking on so reassignment shows up in chatter.
+    buyer_id = fields.Many2one(
+        'res.users', string='Buyer',
+        default=lambda self: self.env.user,
+        tracking=True, index=True,
+        help='Buyer who owns the sourcing decision on this RFQ. Used '
+             'by the "My RFQs as Buyer" search filter so multi-buyer '
+             'teams can scope their queue. Distinct from requestor_id '
+             '(the engineer who raised the request).',
+    )
     due_date = fields.Date(string='Quotes Due By', tracking=True)
     sent_on = fields.Datetime(string='Sent On', readonly=True, copy=False)
     awarded_on = fields.Datetime(string='Awarded On', readonly=True, copy=False)
