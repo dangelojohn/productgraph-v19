@@ -7,8 +7,12 @@
         <field name="arch" type="xml">
             <!-- W058 (R6.11) — decoration-info on the row when the
                  auto-ranker has a recommendation. Lets a buyer spot
-                 ready-to-award lines at a glance during triage. -->
-            <list decoration-info="has_recommendation == True">
+                 ready-to-award lines at a glance during triage.
+                 W059 (R6.9) — decoration-danger when the recommended
+                 bid's MOQ exceeds qty AND the buyer hasn't already
+                 accepted the shortfall. Warn, not block. -->
+            <list decoration-info="has_recommendation == True"
+                  decoration-danger="moq_shortfall == True and moq_shortfall_accepted == False">
                 <field name="rfq_id"/>
                 <field name="item_id"/>
                 <field name="qty"/>
@@ -23,6 +27,15 @@
                        widget="badge"
                        decoration-info="has_recommendation == True"/>
                 <field name="has_recommendation" column_invisible="True"/>
+                <!-- W059 (R6.9) — MOQ shortfall fields, optional but
+                     visible by default so buyers triaging the list
+                     see the flag without opening every form. -->
+                <field name="moq_shortfall" widget="boolean_toggle"
+                       optional="show" readonly="1"/>
+                <field name="moq_shortfall_amount" optional="hide"
+                       readonly="1"/>
+                <field name="moq_shortfall_accepted" widget="boolean_toggle"
+                       optional="hide"/>
                 <field name="awarded_bid_id"/>
                 <field name="rfq_state" widget="badge" optional="show"/>
             </list>

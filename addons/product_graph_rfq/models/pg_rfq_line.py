@@ -56,10 +56,78 @@ class PgRfqLine(models.Model):
              'highlight in the list view.',
     )
 
+    # W059 (R6.9, 2026-06-27) — MOQ shortfall warning.
+    # Anchored on `recommended_bid_id.moq` because that's the bid the
+    # buyer is on the cusp of awarding; if it carries an MOQ above
+    # `qty`, the order won't actually clear with that vendor. We do not
+    # compute shortfall against EVERY bid because the buyer hasn't
+    # committed to those yet — recompute on Award changes if the
+    # recommendation shifts to a different vendor.
+    #
+    # `moq_shortfall_accepted` lets the buyer acknowledge the gap
+    # explicitly so the red banner mutes. The two together model the
+    # "warn, don't block" UX the brief requires.
+    moq_shortfall = fields.Boolean(
+        string='MOQ Shortfall',
+        compute='_compute_moq_shortfall',
+        store=True,
+        help='True when the recommended bid has a Minimum Order Quantity '
+             'higher than this line qty. Surfaces a warning banner in '
+             'the form; buyer either bumps qty or sets '
+             'moq_shortfall_accepted.',
+    )
+    moq_shortfall_amount = fields.Float(
+        string='MOQ Shortfall Qty',
+        compute='_compute_moq_shortfall',
+        store=True,
+        help='moq - qty when shortfall is True, else 0. Drives the '
+             'banner text "MOQ 100, requesting 20".',
+    )
+    moq_shortfall_accepted = fields.Boolean(
+        string='MOQ Shortfall Accepted',
+        default=False,
+        copy=False,
+        help='Buyer flag — when True the MOQ-shortfall banner stops '
+             'shouting. Use this when you knowingly accept the overage '
+             '(e.g. you intend to stock the surplus or split the qty '
+             'across multiple lines).',
+    )
+
     @api.depends('recommended_bid_id')
     def _compute_has_recommendation(self):
         for rec in self:
             rec.has_recommendation = bool(rec.recommended_bid_id)
+
+    @api.depends('qty', 'recommended_bid_id', 'recommended_bid_id.moq')
+    def _compute_moq_shortfall(self):
+        for rec in self:
+            bid = rec.recommended_bid_id
+            moq = bid.moq if bid else 0.0
+            if bid and moq and rec.qty < moq:
+                rec.moq_shortfall = True
+                rec.moq_shortfall_amount = moq - rec.qty
+            else:
+                rec.moq_shortfall = False
+                rec.moq_shortfall_amount = 0.0
+
+    def action_bump_qty_to_moq(self):
+        """Convenience action — bump qty up to the recommended bid's MOQ.
+        Idempotent; clears `moq_shortfall_accepted` since the gap is gone."""
+        for rec in self:
+            bid = rec.recommended_bid_id
+            if not bid or not bid.moq or rec.qty >= bid.moq:
+                continue
+            rec.write({
+                'qty': bid.moq,
+                'moq_shortfall_accepted': False,
+            })
+        return True
+
+    def action_accept_moq_shortfall(self):
+        """Buyer's 'I know, ship it anyway' click — flags the line as
+        knowingly under-MOQ so the banner stops shouting."""
+        self.write({'moq_shortfall_accepted': True})
+        return True
 
     rfq_state = fields.Selection(
         related='rfq_id.state', store=True, index=True, string='RFQ State',

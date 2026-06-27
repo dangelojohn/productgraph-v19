@@ -127,6 +127,34 @@
                                     <field name="spec_notes" optional="hide"/>
                                 </list>
                                 <form>
+                                    <!-- W059 (R6.9) — MOQ shortfall warning banner.
+                                         Red while the buyer hasn't accepted; muted
+                                         once they click Accept. Two action buttons
+                                         let them either bump qty to MOQ or accept
+                                         the gap knowingly. Never blocks save. -->
+                                    <div class="alert alert-danger" role="alert"
+                                         invisible="not moq_shortfall or moq_shortfall_accepted">
+                                        <strong>MOQ shortfall:</strong>
+                                        recommended bid requires
+                                        <field name="recommended_bid_id" readonly="1" nolabel="1"
+                                               class="d-inline"/>
+                                        MOQ
+                                        <field name="moq_shortfall_amount" readonly="1" nolabel="1"
+                                               class="d-inline"/>
+                                        unit(s) above current qty
+                                        <field name="qty" readonly="1" nolabel="1"
+                                               class="d-inline"/>.
+                                        <button name="action_bump_qty_to_moq"
+                                                type="object" string="Bump Qty to MOQ"
+                                                class="btn btn-sm btn-primary ms-2"/>
+                                        <button name="action_accept_moq_shortfall"
+                                                type="object" string="Accept Shortfall"
+                                                class="btn btn-sm btn-warning ms-1"/>
+                                    </div>
+                                    <div class="alert alert-secondary" role="alert"
+                                         invisible="not moq_shortfall or not moq_shortfall_accepted">
+                                        <em>MOQ shortfall acknowledged by buyer.</em>
+                                    </div>
                                     <group>
                                         <group>
                                             <field name="item_id"/>
@@ -142,6 +170,9 @@
                                                     Suggested — pick the Awarded toggle to confirm
                                                 </span>
                                             </div>
+                                            <field name="moq_shortfall" invisible="1"/>
+                                            <field name="moq_shortfall_amount" invisible="1"/>
+                                            <field name="moq_shortfall_accepted" invisible="1"/>
                                         </group>
                                     </group>
                                     <group string="Spec Notes">
