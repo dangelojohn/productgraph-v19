@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+from datetime import timedelta
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
@@ -270,19 +271,81 @@ class PgRfq(models.Model):
     # ──────────────────────────────────────────────────────────────────
     # Auto-draft cron (PG-133 task 1)
     # ──────────────────────────────────────────────────────────────────
+    # W033 (R6.8, 2026-06-27) — batch cap + per-item cooldown.
+    # Two ICP keys gate the cron:
+    #   southbrook.auto_rfq_max_per_run     int, default 10 (cap on new
+    #                                       RFQs per pass)
+    #   southbrook.auto_rfq_cooldown_hours  int, default 24 (per-item
+    #                                       re-attempt cooldown)
+    # Per-item cooldown anchored on pg.item.last_auto_rfq_on (added by
+    # this addon). The stamp is written for BOTH outcomes (drafted RFQ
+    # OR posted unsourced-item activity) so a missing-category item
+    # does not keep firing the activity-creation path daily either.
+    _DEFAULT_AUTO_RFQ_MAX_PER_RUN = 10
+    _DEFAULT_AUTO_RFQ_COOLDOWN_HOURS = 24
+
+    @api.model
+    def _get_auto_rfq_max_per_run(self):
+        Param = self.env['ir.config_parameter'].sudo()
+        raw = Param.get_param('southbrook.auto_rfq_max_per_run')
+        try:
+            value = int(raw) if raw is not None and raw != '' else self._DEFAULT_AUTO_RFQ_MAX_PER_RUN
+        except (TypeError, ValueError):
+            value = self._DEFAULT_AUTO_RFQ_MAX_PER_RUN
+        # 0 / negative values are treated as "no cap" — the original
+        # behaviour, useful for tests or when an admin wants the legacy
+        # firehose back.
+        return value if value > 0 else None
+
+    @api.model
+    def _get_auto_rfq_cooldown_hours(self):
+        Param = self.env['ir.config_parameter'].sudo()
+        raw = Param.get_param('southbrook.auto_rfq_cooldown_hours')
+        try:
+            value = int(raw) if raw is not None and raw != '' else self._DEFAULT_AUTO_RFQ_COOLDOWN_HOURS
+        except (TypeError, ValueError):
+            value = self._DEFAULT_AUTO_RFQ_COOLDOWN_HOURS
+        return max(value, 0)
+
     @api.model
     def _cron_auto_draft_missing_rfqs(self):
         """Daily sweep: draft RFQs for purchased items lacking a qualified
         AVL vendor. Recommendation-only — the RFQ stays in 'draft' so a
-        human still has to confirm pricing and click Send / Award."""
+        human still has to confirm pricing and click Send / Award.
+
+        W033 (R6.8) — capped at `southbrook.auto_rfq_max_per_run` new
+        RFQs per pass (default 10) AND skips items whose
+        `last_auto_rfq_on` is within
+        `southbrook.auto_rfq_cooldown_hours` (default 24). Counts only
+        RFQs actually created against the cap — items skipped by
+        cooldown or already-sourced don't burn the budget.
+        """
         Item = self.env['pg.item']
-        items = Item.search([
+        max_per_run = self._get_auto_rfq_max_per_run()
+        cooldown_hours = self._get_auto_rfq_cooldown_hours()
+
+        domain = [
             ('item_type', '=', 'purchased'),
             ('state', 'in', ('engineering', 'released')),
             ('active', '=', True),
-        ])
+        ]
+        if cooldown_hours:
+            cutoff = fields.Datetime.now() - timedelta(hours=cooldown_hours)
+            domain.append('|')
+            domain.append(('last_auto_rfq_on', '=', False))
+            domain.append(('last_auto_rfq_on', '<', cutoff))
+        items = Item.search(domain)
+
         created = self.env['pg.rfq']
+        considered_items = Item
         for item in items:
+            if max_per_run is not None and len(created) >= max_per_run:
+                _logger.info(
+                    "Auto-RFQ batch cap (%d) reached — deferring further "
+                    "candidate items to the next cron pass.",
+                    max_per_run,
+                )
+                break
             qualified = item.vendor_part_ids.filtered(
                 lambda vp: vp.vendor_id.state == 'qualified' and vp.active
             )
@@ -295,12 +358,23 @@ class PgRfq(models.Model):
             if existing:
                 continue
             rfq = self._auto_draft_for_item(item)
+            considered_items |= item
             if rfq:
                 created |= rfq
+        # Stamp the cooldown anchor for every item we touched (drafted OR
+        # bounced off the no-category / no-vendor path). Sudo because the
+        # cron runs as the cron user and pg.item writes are gated.
+        if considered_items:
+            considered_items.sudo().write({
+                'last_auto_rfq_on': fields.Datetime.now(),
+            })
         if created:
             _logger.info(
-                "Auto-drafted %d RFQs for unsourced purchased items",
+                "Auto-drafted %d RFQs for unsourced purchased items "
+                "(cap=%s, cooldown=%dh)",
                 len(created),
+                'none' if max_per_run is None else str(max_per_run),
+                cooldown_hours,
             )
         return created
 
