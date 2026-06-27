@@ -42,6 +42,24 @@ class PgRfqLine(models.Model):
              'on this line. Suggestion only — the Award action still '
              'requires a human flag on the chosen bid.',
     )
+    # W046/W058 (2026-06-27, R6.11) — list-view affordances.
+    # has_recommendation is a thin stored boolean derived from
+    # recommended_bid_id; it gives the list view a clean field to bind
+    # both the row decoration-info and badge-widget visibility against
+    # without making the recommendation domain-searchable.
+    has_recommendation = fields.Boolean(
+        compute='_compute_has_recommendation',
+        store=True,
+        string='Has Recommendation',
+        help='True when the auto-ranker selected a recommended bid for '
+             'this line. Used to drive the Recommended badge + row '
+             'highlight in the list view.',
+    )
+
+    @api.depends('recommended_bid_id')
+    def _compute_has_recommendation(self):
+        for rec in self:
+            rec.has_recommendation = bool(rec.recommended_bid_id)
 
     rfq_state = fields.Selection(
         related='rfq_id.state', store=True, index=True, string='RFQ State',
