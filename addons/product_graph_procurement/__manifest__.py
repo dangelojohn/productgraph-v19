@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Procurement Bridge',
-    'version': '19.0.1.4.0',
+    'version': '19.0.1.5.0',
     'category': 'Manufacturing/PLM',
     'summary': 'On RFQ award, generate a purchase.requisition with the '
                'winning bids — closes the AVL → MRP loop',
@@ -50,6 +50,7 @@ Compatible with Odoo 19.0 Community Edition.
         'views/pg_rfq_views.xml',
         'views/purchase_inherit_views.xml',
         'views/pg_vendor_views.xml',
+        'views/pg_switch_source_wizard_views.xml',
     ],
     'installable': True,
     'application': False,

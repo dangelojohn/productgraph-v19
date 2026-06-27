@@ -1,1 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pg_switch_source_wizard_engineer,pg.switch.source.wizard engineer,model_pg_switch_source_wizard,product_graph_base.group_pg_engineer,1,1,1,1
+access_pg_switch_source_wizard_approver,pg.switch.source.wizard approver,model_pg_switch_source_wizard,product_graph_base.group_pg_approver,1,1,1,1

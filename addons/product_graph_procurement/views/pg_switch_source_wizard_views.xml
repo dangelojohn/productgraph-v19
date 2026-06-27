@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  W030 (R6.5) — Switch Source wizard views + launch buttons.
+
+  Wizard form lays out:
+    * Current vendor (read-only)
+    * Candidate list pulled from AVL (sorted by rank, lead-time, price)
+    * Reason text (required — audit trail)
+    * Confirm / Cancel footer
+
+  Launch buttons land on the requisition line (purchase.requisition
+  form's line list — header button on the requisition itself launches
+  the wizard targeting the first selected line) and on the PO line list.
+
+  Per Bible R5, the wizard view lives in its own XML file.
+-->
+<odoo>
+
+    <record id="view_pg_switch_source_wizard_form" model="ir.ui.view">
+        <field name="name">pg.switch.source.wizard.form</field>
+        <field name="model">pg.switch.source.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Switch Source (one-time override)">
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        <strong>One-time override.</strong>
+                        This wizard swaps the vendor on THIS line only.
+                        The AVL preferred-source flag is NOT modified —
+                        future demand still routes to the preferred
+                        vendor.
+                    </div>
+                    <group>
+                        <group string="Context">
+                            <field name="requisition_line_id"
+                                   readonly="1"
+                                   invisible="not requisition_line_id"
+                                   options="{'no_create_edit': True}"/>
+                            <field name="po_line_id"
+                                   readonly="1"
+                                   invisible="not po_line_id"
+                                   options="{'no_create_edit': True}"/>
+                            <field name="pg_item_id" readonly="1"
+                                   options="{'no_create_edit': True}"/>
+                            <field name="current_vendor_id" readonly="1"
+                                   options="{'no_create_edit': True}"/>
+                            <field name="current_partner_id" readonly="1"
+                                   options="{'no_create_edit': True}"/>
+                        </group>
+                        <group string="Switch To">
+                            <field name="new_vendor_part_id"
+                                   options="{'no_create_edit': True}"/>
+                            <field name="new_vendor_id" readonly="1"
+                                   options="{'no_create_edit': True}"/>
+                            <field name="new_partner_id" readonly="1"
+                                   options="{'no_create_edit': True}"/>
+                        </group>
+                    </group>
+                    <group string="AVL Candidates (rank · lead · price)">
+                        <field name="candidate_vendor_part_ids" nolabel="1"
+                               readonly="1">
+                            <list>
+                                <field name="vendor_id"/>
+                                <field name="vendor_part_number"/>
+                                <field name="rank"/>
+                                <field name="lead_time_days"/>
+                                <field name="moq"/>
+                                <field name="unit_price_hint"/>
+                                <field name="is_preferred"
+                                       widget="boolean_toggle" readonly="1"/>
+                                <field name="vendor_state" widget="badge"
+                                       decoration-success="vendor_state == 'qualified'"
+                                       decoration-warning="vendor_state == 'suspended'"
+                                       decoration-danger="vendor_state == 'disqualified'"/>
+                            </list>
+                        </field>
+                    </group>
+                    <group string="Reason (required)">
+                        <field name="reason" nolabel="1"
+                               placeholder="e.g. preferred vendor on holiday until 7/15..."/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_confirm" type="object"
+                            string="Confirm Switch" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary"
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_pg_switch_source_wizard"
+            model="ir.actions.act_window">
+        <field name="name">Switch Source</field>
+        <field name="res_model">pg.switch.source.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="purchase_requisition.model_purchase_requisition_line"/>
+        <field name="binding_view_types">list,form</field>
+    </record>
+
+    <record id="action_pg_switch_source_wizard_po_line"
+            model="ir.actions.act_window">
+        <field name="name">Switch Source</field>
+        <field name="res_model">pg.switch.source.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="purchase.model_purchase_order_line"/>
+        <field name="binding_view_types">list,form</field>
+    </record>
+
+</odoo>
