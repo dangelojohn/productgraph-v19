@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  W022 (R6.3) — vendor suspension exposure surface.
+
+  Extends pg.vendor form with three smart buttons in the existing
+  button_box that show open POs / open requisitions / open RFQ lines
+  for the vendor. Tapping each opens a filtered list, giving the
+  buyer a 2-click answer to "what's exposed if I suspend X?".
+
+  The on-suspend mail.activity is fired by the action_suspend
+  override in models/pg_vendor.py — no view wiring needed there.
+-->
+<odoo>
+
+    <record id="view_pg_vendor_form_w022_inherit"
+            model="ir.ui.view">
+        <field name="name">pg.vendor.form.w022.exposure</field>
+        <field name="model">pg.vendor</field>
+        <field name="inherit_id"
+               ref="product_graph_vendor.view_pg_vendor_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_view_vendor_parts']"
+                   position="after">
+                <button name="action_view_open_pos" type="object"
+                        class="oe_stat_button" icon="fa-shopping-cart"
+                        invisible="not partner_id">
+                    <field name="open_po_count" widget="statinfo"
+                           string="Open POs"/>
+                </button>
+                <button name="action_view_open_requisitions" type="object"
+                        class="oe_stat_button" icon="fa-clipboard-list"
+                        invisible="not partner_id">
+                    <field name="open_requisition_count" widget="statinfo"
+                           string="Requisitions"/>
+                </button>
+                <button name="action_view_open_rfq_lines" type="object"
+                        class="oe_stat_button" icon="fa-gavel">
+                    <field name="open_rfq_line_count" widget="statinfo"
+                           string="RFQ Lines"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
