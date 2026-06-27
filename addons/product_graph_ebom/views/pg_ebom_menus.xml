@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- PG-142: Shortened "Engineering BOMs" -> "EBOMs" to relieve
+         responsive-overflow pressure on the top bar. -->
     <menuitem id="menu_pg_ebom"
-              name="Engineering BOMs"
+              name="EBOMs"
               parent="product_graph_base.menu_pg_engineering"
               action="action_pg_ebom"
               sequence="40"/>

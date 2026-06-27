@@ -63,7 +63,9 @@ class PgPropertyTemplate(models.Model):
         string='Fields',
         copy=True,
     )
-    field_count = fields.Integer(compute='_compute_field_count', string='# Fields')
+    field_count = fields.Integer(
+        compute='_compute_field_count', string='# Fields', store=True,
+    )
 
     active = fields.Boolean(default=True)
 

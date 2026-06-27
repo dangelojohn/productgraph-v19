@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Engineering Change Orders',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.7.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Engineering Change Order (ECO) workflow tying revisions to a '
                'governed change-board approval cycle',
@@ -63,6 +63,7 @@ Compatible with Odoo 19.0 Community Edition.
     'depends': [
         'product_graph_base',
         'product_graph_revision',
+        'product_graph_ebom',
         'mail',
     ],
     'data': [
@@ -70,10 +71,13 @@ Compatible with Odoo 19.0 Community Edition.
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',
         'data/mail_templates.xml',
+        'data/pg_eco_config.xml',
         'views/pg_eco_views.xml',
         'views/pg_eco_line_views.xml',
         'views/pg_eco_approval_views.xml',
         'views/pg_eco_menus.xml',
+        'views/pg_work_queue_views.xml',
+        'wizard/views/eco_impact_wizard_view.xml',
     ],
     'demo': [
         'demo/pg_eco_demo.xml',

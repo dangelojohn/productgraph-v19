@@ -147,14 +147,48 @@ visibility.)
 - `pg.ebom.state`: draft → review → released → superseded
 - `pg.release.state`: pending → executing → completed → failed
 
-### R9 — Phase 1 vs Phase 2 strictness
-Phase 1 ships: base + revision + ebom + release + api + mcp + southbrook bridge.
-Phase 2 (out of scope this build): pg.eco (ECO workflow), full pg.vendor UI/RFQ,
-pg.graph (graph relationship engine), pg.cad (CAD connectors).
+### R9 — Phase 1 (CLOSED) + Phase 2 (LANDED) + Phase 3 (Future)
 
-**The seed module's `pg.change.request` is NOT carried forward.** ECO lives
-in southbrook_plm for now. A future `product_graph_eco` Phase 2 module will
-re-introduce it generically.
+**Phase 1 (closed) — Core engineering catalog & release pipeline:**
+- `product_graph_base` — pg.item, pg.category, pg.property.*, pg.audit.log, 6 security groups, per-type sequences
+- `product_graph_revision` — pg.revision, pg.document
+- `product_graph_ebom` — pg.ebom, pg.ebom.line, pg.ebom.closure (advisory-locked rebuild)
+- `product_graph_release` — pg.release, mrp.production traceability, mrp.bom provenance fields
+- `product_graph_api` — REST controllers under /api/v1/productgraph/*
+- mcp/ sidecar (separate container)
+- `bridge_spec/` — southbrook_plm.eco → pg.release wire spec (bridge addon lives in southbrook private repo)
+
+**Phase 2 (landed) — ECO workflow + full procurement + CAD + relationships:**
+- `product_graph_eco` — pg.eco 5-state machine (draft → analysis → approval → implementation → released + rejected), pg.eco.line, pg.eco.approval, SoD enforcement, ICP-gated automation
+- `product_graph_vendor` — pg.vendor 5-state qualification lifecycle, pg.vendor.part AVL, pg.vendor.qualification audit, expiring-cert cron
+- `product_graph_rfq` — pg.rfq + pg.rfq.line + pg.rfq.bid, auto-rank by price/lead-time/MOQ (NEVER auto-awards)
+- `product_graph_procurement` — bridge from RFQ to purchase.requisition
+- `product_graph_relationship` — pg.relationship (substitutes/alternates/supersedes/references/related edges) + computed helpers on items
+- `product_graph_eco_relationship` — bridge: on ECO release, auto-write supersession edges
+- `product_graph_cad` — pg.cad.connector framework + JsonFileConnector + scheduled-sync cron + 5-layer draft-only enforcement
+- `product_graph_cad_solidworks`, `product_graph_cad_onshape` — vendor-specific driver stubs
+
+**Phase 3 (future / out of scope):**
+- Phase-2 module ECO auto-spawn → MRP auto-routing (currently human-mediated)
+- Active enforcement of MG-3 incompatibility at warehouse intake (currently audit-only)
+- res.config.settings panel was added for all 8 ICP toggles in Phase 2.5
+- Vendor portal / supplier self-service
+- CAD-driver auto-revise diff engine (the `auto_revise_on_change` flag exists but the diff logic is a stub)
+
+**Pattern note:** What WAS the bridge `product_graph_southbrook` plan is now superseded by the native `product_graph_eco` module + `product_graph_eco_relationship`. The seed module's `pg.change.request` was correctly NOT carried forward. southbrook_plm.eco still exists in the southbrook private repo for cabinetry-specific ECO production workflow; the two ECO surfaces coexist (one cabinetry-specific, one PLM-generic).
+
+### Runtime configuration (ir.config_parameter)
+
+Eight ICP keys control Phase 2 automation defaults. All default `True`. Admins toggle via Settings → ProductGraph (added by PG-125) or directly in ir.config_parameter:
+
+- `productgraph.enforce_sod` — segregation of duties
+- `productgraph.auto_advance_item_on_revision_release` — item state auto-promotion
+- `productgraph.auto_close_eco_on_all_revisions_released`
+- `productgraph.auto_spawn_revision_from_eco_line`
+- `productgraph.notify_on_auto_advance`
+- `productgraph.eco_impact_explode_enabled`
+- `productgraph.eco_route_on_submit`
+- `productgraph.eco_sla_enabled`
 
 ## What we harvest from the seed module (`_seed/product_graph/`)
 
@@ -188,10 +222,13 @@ Keep the patterns, refactor the structure:
 - [x] CSV import/export for items and BOMs
 - [x] REST API for headless integration
 - [x] MCP server for LLM-agent integration (this is our OpenBOM differentiator)
-- [ ] Phase 2: full vendor catalog + RFQ + AVL/AML
-- [ ] Phase 2: ECO workflow (generic, not southbrook-specific)
-- [ ] Phase 2: graph relationship engine
-- [ ] Phase 2: CAD connectors (SOLIDWORKS first)
+- [x] Phase 2: full vendor catalog + RFQ + AVL/AML (landed Sprint 3)
+- [x] Phase 2: ECO workflow with auto-spawn + impact explode + SLA + escalation (landed Sprints 3-4)
+- [x] Phase 2: graph relationship engine (substitutes/alternates/supersedes)
+- [x] Phase 2: CAD connectors (framework + JSON driver shipped; SolidWorks + Onshape stubs)
+- [ ] Phase 3: CAD diff-on-pull → auto-revise (flag exists, logic deferred)
+- [ ] Phase 3: Vendor portal / supplier self-service
+- [ ] Phase 3: Active MG-3 incompatibility enforcement at warehouse intake
 
 ## Team coding protocol
 
@@ -226,21 +263,29 @@ The Southbrook Cabinetry QNAP stack at 192.168.68.108:
   the OCA `product_configurator*` suite.
 - Forgejo git on the same QNAP under org `qnap` for staging.
 
-## Build order (this session)
+## Build status
 
-1. workspace + this file (done)
-2. `product_graph_base` (in progress)
-3. `product_graph_revision`
-4. `product_graph_ebom`
-5. `product_graph_release`
-6. `product_graph_api`
-7. `mcp/` sidecar
-8. `bridge_spec/` — write the spec, defer the actual addon code
+All Phase 1 + Phase 2 addons shipped. Tests scaffolded across 14 addons (~270 tests, ~6,100 LoC) but not yet run in CI — pending Docker harness execution (see `TESTING.md` at repo root, added by PG-151).
 
-Each module ships with: `__manifest__.py`, `__init__.py`, models, security,
-views, demo, tests. We do NOT install on the QNAP until base + revision +
-ebom + release are all green on a local Odoo 19 dev instance.
+| Phase | Addon | Status |
+|---|---|---|
+| 1 | product_graph_base | live |
+| 1 | product_graph_revision | live |
+| 1 | product_graph_ebom | live |
+| 1 | product_graph_release | live |
+| 1 | product_graph_api | live |
+| 1 | mcp/ sidecar | live (separate container) |
+| 1 | bridge_spec/ | spec only — bridge lives in southbrook-v19cr private repo |
+| 2 | product_graph_eco | live |
+| 2 | product_graph_vendor | live |
+| 2 | product_graph_rfq | live |
+| 2 | product_graph_procurement | live |
+| 2 | product_graph_relationship | live |
+| 2 | product_graph_eco_relationship | live |
+| 2 | product_graph_cad | live |
+| 2 | product_graph_cad_solidworks | stub |
+| 2 | product_graph_cad_onshape | stub |
 
 ---
 
-*Last updated: 2026-06-09 | Decisions locked: D1-D7 (this session) | Bibles: v1.0*
+*Last updated: 2026-06-27 (Phase 2 landed) | Decisions: D1-D8 + ICP toggles | Bibles: v1.0*

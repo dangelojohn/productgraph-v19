@@ -36,6 +36,7 @@ class PgAuditLog(models.Model):
             ('property_update', 'Property Value Update'),
             ('document_upload', 'Document Upload'),
             ('mo_freeze', 'Manufacturing Order Frozen'),
+            ('force_release', 'Force Release'),
             ('other', 'Other'),
         ],
         string='Action',

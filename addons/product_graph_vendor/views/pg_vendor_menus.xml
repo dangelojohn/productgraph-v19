@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- PG-142: Renamed root from "Vendors" to "Sourcing" so RFQ menus can
+         consolidate underneath, reducing top-level menu count and keeping
+         CAD + Configuration out of the responsive overflow. -->
     <menuitem id="menu_pg_vendor_root"
-              name="Vendors"
+              name="Sourcing"
               parent="product_graph_base.menu_pg_root"
               sequence="40"/>
 

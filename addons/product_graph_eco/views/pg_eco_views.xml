@@ -20,7 +20,14 @@
                 <field name="requestor_id"/>
                 <field name="engineering_lead_id"/>
                 <field name="line_count" string="# Items"/>
-                <field name="target_release_date"/>
+                <field name="target_release_date"
+                       decoration-danger="target_release_date and target_release_date &lt; current_date and state not in ('released', 'rejected')"
+                       decoration-warning="target_release_date and target_release_date &gt;= current_date and state not in ('released', 'rejected')"/>
+                <field name="escalation_level" widget="badge"
+                       decoration-warning="escalation_level == 1"
+                       decoration-danger="escalation_level &gt;= 2"
+                       invisible="not escalation_level"
+                       optional="show"/>
                 <field name="actual_release_date" optional="hide"/>
                 <field name="company_id" groups="base.group_multi_company"/>
             </list>
@@ -32,10 +39,14 @@
         <field name="model">pg.eco</field>
         <field name="arch" type="xml">
             <kanban default_group_by="state" class="o_kanban_small_column">
+                <field name="name"/>
+                <field name="title"/>
                 <field name="state"/>
                 <field name="priority"/>
                 <field name="change_type"/>
                 <field name="line_count"/>
+                <field name="requestor_id"/>
+                <field name="target_release_date"/>
                 <templates>
                     <t t-name="card">
                         <div class="o_kanban_record_top">
@@ -103,6 +114,18 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <!-- PG-161: one-click Promote (advance to next valid state)
+                         and Express Release (draft → released in one shot,
+                         admin-only when SoD is enforced). -->
+                    <button name="action_promote" string="Promote"
+                            type="object" class="btn-primary"
+                            invisible="not can_promote"
+                            help="Advance ECO to the next valid state. Reuses normal gating."/>
+                    <button name="action_express_release" string="Express Release"
+                            type="object" class="btn-danger"
+                            invisible="not can_express_release"
+                            confirm="Express Release will fast-track this ECO from Draft through to Released in one step. This is admin-only when SoD is enforced. Continue?"
+                            help="One-click draft-through-release for admins or when SoD is disabled. All affected revisions must already be available."/>
                     <button name="action_start_analysis" string="Start Analysis"
                             type="object" class="oe_highlight"
                             invisible="state != 'draft'"
@@ -133,6 +156,31 @@
                            statusbar_visible="draft,analysis,approval,implementation,released"/>
                 </header>
                 <sheet>
+                    <!-- PG-161: lifecycle-button compute flags. -->
+                    <field name="can_promote" invisible="1"/>
+                    <field name="promote_blocked_reason" invisible="1"/>
+                    <field name="can_express_release" invisible="1"/>
+                    <field name="express_release_blocked_reason" invisible="1"/>
+                    <!-- PG-161: surface the "why can't I promote?" reason as
+                         an info banner whenever the ECO is in a non-final
+                         state and Promote is unavailable. -->
+                    <div class="alert alert-info" role="alert"
+                         invisible="can_promote or state in ('released', 'rejected') or not promote_blocked_reason">
+                        <i class="fa fa-info-circle"/>
+                        <field name="promote_blocked_reason" nolabel="1" readonly="1"/>
+                    </div>
+                    <!-- PG-134: surface escalation level as a banner. -->
+                    <div class="alert alert-danger" role="alert"
+                         invisible="escalation_level &lt; 2">
+                        <i class="fa fa-exclamation-triangle"/>
+                        This ECO is critically overdue.
+                    </div>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="escalation_level != 1">
+                        <i class="fa fa-exclamation-circle"/>
+                        This ECO is past its Target Release Date (escalation
+                        level 1).
+                    </div>
                     <div class="oe_title">
                         <label for="title"/>
                         <h1>
@@ -153,6 +201,10 @@
                             <field name="effective_date"/>
                             <field name="target_release_date"/>
                             <field name="actual_release_date"/>
+                            <field name="escalation_level" readonly="1"
+                                   invisible="not escalation_level"/>
+                            <field name="escalation_stamped_at" readonly="1"
+                                   invisible="not escalation_level"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                     </group>
@@ -170,6 +222,21 @@
                                     <field name="change_kind"/>
                                     <field name="status"/>
                                     <field name="notes"/>
+                                    <!-- PG-131: spawn a draft target revision from the predecessor. -->
+                                    <button name="action_spawn_revision"
+                                            string="Spawn Target Revision"
+                                            type="object"
+                                            icon="fa-plus-square-o"
+                                            invisible="to_revision_id or change_kind in ('obsolete', 'introduce')"
+                                            help="Create a draft target revision for this line by cloning the predecessor's properties and released EBOM."/>
+                                    <!-- PG-132: explode closure to find downstream assemblies. -->
+                                    <button name="action_explode_impact"
+                                            string="Explode Impact"
+                                            type="object"
+                                            class="btn-secondary"
+                                            icon="fa-sitemap"
+                                            invisible="not item_id"
+                                            help="Find all assemblies using this item and suggest adding them as affected items."/>
                                 </list>
                             </field>
                         </page>

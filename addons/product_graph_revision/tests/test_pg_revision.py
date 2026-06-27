@@ -16,6 +16,12 @@ class TestPgRevision(TransactionCase):
             | cls.env.ref('product_graph_base.group_pg_approver')
             | cls.env.ref('product_graph_base.group_pg_admin')
         )
+        # PG-120 SoD is off here: these tests pre-date the guard and exercise
+        # state-machine semantics as a single user. Dedicated SoD coverage
+        # lives in test_sod.py.
+        cls.env['ir.config_parameter'].sudo().set_param(
+            'productgraph.enforce_sod', 'False',
+        )
 
     def _make_item(self, item_type='part'):
         item = self.env['pg.item'].create({

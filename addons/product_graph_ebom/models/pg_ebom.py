@@ -31,6 +31,9 @@ EBOM_STATES = [
     ('superseded', 'Superseded'),
 ]
 
+# Backwards-compat alias for any sibling code that historically reached in
+# for the transition map. The authoritative source is now
+# LIFECYCLE_TRANSITIONS on PgEbom (provided by pg.lifecycle.mixin).
 _EBOM_TRANSITIONS = {
     'draft':      ['review'],
     'review':     ['released', 'draft'],
@@ -38,18 +41,26 @@ _EBOM_TRANSITIONS = {
     'superseded': [],
 }
 
-_MUTABLE_ON_LOCKED = frozenset({
-    'state', 'active',
-    'message_ids', 'message_follower_ids', 'activity_ids',
-})
-
 
 class PgEbom(models.Model):
     _name = 'pg.ebom'
     _description = 'ProductGraph Engineering BOM'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['pg.lifecycle.mixin', 'mail.thread', 'mail.activity.mixin']
     _order = 'create_date desc, id desc'
     _rec_name = 'display_name'
+
+    # ─── Lifecycle mixin config ──────────────────────────────────────────────
+    LIFECYCLE_STATES = EBOM_STATES
+    LIFECYCLE_TRANSITIONS = _EBOM_TRANSITIONS
+    LIFECYCLE_BYPASS_KEY = '_pg_release_bypass'
+    LIFECYCLE_MUTABLE_LOCKED = frozenset({
+        'state', 'active',
+        'message_ids', 'message_follower_ids', 'activity_ids',
+    })
+    # Both 'released' and 'superseded' must be locked. 'released' has
+    # transitions to 'superseded' so the auto-inferred terminal-set logic
+    # would skip it — declare explicitly to preserve the prior write() guard.
+    LIFECYCLE_TERMINAL_STATES = frozenset({'released', 'superseded'})
 
     # ─── Identity ────────────────────────────────────────────────────────────
     name = fields.Char(
@@ -77,7 +88,10 @@ class PgEbom(models.Model):
         ondelete='restrict',
         index=True,
         tracking=True,
-        domain="[('item_id','=',root_item_id)]",
+        # draft/review allowed so an EBOM can be drafted alongside its
+        # parent revision; the real gate is in action_release().
+        domain="[('item_id','=',root_item_id),"
+               "('state','in',('draft','review','released','superseded'))]",
     )
 
     # ─── Lifecycle ───────────────────────────────────────────────────────────
@@ -109,7 +123,13 @@ class PgEbom(models.Model):
         string='Components',
         copy=True,
     )
-    line_count = fields.Integer(compute='_compute_line_count', string='# Lines')
+    # store=True is safe: the dependency is a one2many of pg.ebom.line whose
+    # write/unlink call super(); ORM invalidation on the o2m triggers recompute.
+    line_count = fields.Integer(
+        compute='_compute_line_count',
+        string='# Lines',
+        store=True,
+    )
 
     # ─── Release metadata (stamped on release) ───────────────────────────────
     effective_date = fields.Date(string='Effective Date', readonly=True, copy=False)
@@ -169,20 +189,7 @@ class PgEbom(models.Model):
                 )
         return super().create(vals_list)
 
-    def write(self, vals):
-        bypass = self.env.context.get('_pg_release_bypass')
-        for rec in self:
-            if rec.state in ('released', 'superseded') and not bypass:
-                blocked = set(vals.keys()) - _MUTABLE_ON_LOCKED
-                if blocked:
-                    raise UserError(_(
-                        "EBOM %(name)s is %(state)s and immutable.\n"
-                        "Blocked fields: %(fields)s.",
-                        name=rec.display_name,
-                        state=rec.state,
-                        fields=', '.join(sorted(blocked)),
-                    ))
-        return super().write(vals)
+    # write() — immutability enforcement provided by pg.lifecycle.mixin.
 
     def unlink(self):
         for rec in self:
@@ -193,31 +200,7 @@ class PgEbom(models.Model):
                 ))
         return super().unlink()
 
-    # ═════════════════════════════════════════════════════════════════════════
-    # Transition helpers
-    # ═════════════════════════════════════════════════════════════════════════
-
-    def _check_transition_allowed(self, target):
-        self.ensure_one()
-        allowed = _EBOM_TRANSITIONS.get(self.state, [])
-        if target not in allowed:
-            raise UserError(_(
-                "Cannot move EBOM %(name)s from '%(from)s' to '%(to)s'.\n"
-                "Allowed: %(allowed)s",
-                name=self.display_name,
-                **{'from': self.state},
-                to=target,
-                allowed=', '.join(allowed) or _('none — terminal'),
-            ))
-
-    def _log_state_change(self, from_state, to_state, notes=None):
-        self.env['pg.audit.log']._log(
-            self,
-            action='state_change',
-            from_state=from_state,
-            to_state=to_state,
-            notes=notes,
-        )
+    # _check_transition_allowed / _log_state_change — provided by pg.lifecycle.mixin.
 
     # ═════════════════════════════════════════════════════════════════════════
     # Action buttons
@@ -254,13 +237,43 @@ class PgEbom(models.Model):
             items = ', '.join(non_released.mapped('pg_item_id.display_name'))
             errors.append(_("Non-released child items: %s") % items)
 
-        # Recursion: a root item should not appear in its own descendants
-        seen = {self.root_item_id.id}
+        # Direct self-reference: a line's component cannot be the root item.
         for line in self.ebom_line_ids:
+            if line.pg_item_id.id == self.root_item_id.id:
+                errors.append(_(
+                    "Item %s cannot be a component of its own BOM."
+                ) % line.pg_item_id.display_name)
+
+        # Duplicate-line detection at top level (excluding the self-ref case
+        # above, which is reported with its own clearer message).
+        seen = set()
+        for line in self.ebom_line_ids:
+            if line.pg_item_id.id == self.root_item_id.id:
+                continue
             if line.pg_item_id.id in seen:
-                errors.append(_("Component %s appears multiple times at top level.")
-                              % line.pg_item_id.display_name)
+                errors.append(_(
+                    "Component %s appears multiple times."
+                ) % line.pg_item_id.display_name)
             seen.add(line.pg_item_id.id)
+
+        # Transitive-cycle detection. The pg.ebom.closure table is built only
+        # on release, so at validate-time we must walk released-EBOM children
+        # of each line item ourselves. Depth-bounded DFS, set-based visited.
+        for line in self.ebom_line_ids:
+            if line.pg_item_id.id == self.root_item_id.id:
+                continue  # already reported as direct self-ref
+            cycle_path = self._walk_descendants_for_cycle(
+                line.pg_item_id, self.root_item_id,
+            )
+            if cycle_path:
+                # Prepend the root item so the displayed path begins with it.
+                display_path = [self.root_item_id] + cycle_path
+                errors.append(_(
+                    "Adding %s would create a circular BOM: %s"
+                ) % (
+                    line.pg_item_id.display_name,
+                    ' → '.join(i.display_name for i in display_path),
+                ))
 
         # Alternate group integrity
         groups = {}
@@ -275,12 +288,67 @@ class PgEbom(models.Model):
 
         return {'ok': not errors, 'errors': errors, 'warnings': warnings}
 
+    def _walk_descendants_for_cycle(self, component_item, root_item,
+                                    depth=0, path=None, visited=None):
+        """DFS through released EBOMs descending from component_item, looking
+        for a path back to root_item. Returns the offending path (list of
+        pg.item) or None. Depth-capped at 30 to bound runaway graphs."""
+        self.ensure_one()
+        if depth > 30:
+            return None
+        visited = visited if visited is not None else set()
+        if component_item.id in visited:
+            # Already explored this branch via a different path; no new cycle here.
+            return None
+        visited = visited | {component_item.id}
+        path = (path or []) + [component_item]
+        if component_item.id == root_item.id:
+            return path
+        released_ebom = self.env['pg.ebom'].search([
+            ('root_item_id', '=', component_item.id),
+            ('state', '=', 'released'),
+        ], limit=1)
+        for child in released_ebom.ebom_line_ids:
+            hit = self._walk_descendants_for_cycle(
+                child.pg_item_id, root_item, depth + 1, path, visited,
+            )
+            if hit:
+                return hit
+        return None
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # Constraints
+    # ═════════════════════════════════════════════════════════════════════════
+
+    @api.constrains('ebom_line_ids', 'root_item_id')
+    def _check_no_direct_self_reference(self):
+        """Eagerly block direct self-reference at save time. Transitive cycles
+        are intentionally NOT checked here — the multi-level DFS is too
+        expensive for every onchange/save and lives in action_validate()."""
+        for rec in self:
+            for line in rec.ebom_line_ids:
+                if line.pg_item_id.id == rec.root_item_id.id:
+                    raise ValidationError(_(
+                        "Item %s cannot be a component of its own BOM."
+                    ) % line.pg_item_id.display_name)
+
     def action_release(self):
         """Review → Released. Approver only. Rebuilds the closure."""
         if not self.env.user.has_group('product_graph_base.group_pg_approver'):
             raise UserError(_("Only Approvers may release EBOMs."))
         for rec in self:
             rec._check_transition_allowed('released')
+            # PG-103 gate: parent revision must itself be released (or already
+            # superseded). Releasing an EBOM against a draft/review revision
+            # would leave the revision without effective_date/released_by_id.
+            if rec.revision_id.state not in ('released', 'superseded'):
+                raise UserError(_(
+                    "Cannot release EBOM %(ebom)s — parent revision %(rev)s "
+                    "is in state %(state)s. Release the revision first.",
+                    ebom=rec.display_name,
+                    rev=rec.revision_id.display_name,
+                    state=rec.revision_id.state,
+                ))
             validation = rec.action_validate()
             if not validation['ok']:
                 raise UserError(_(

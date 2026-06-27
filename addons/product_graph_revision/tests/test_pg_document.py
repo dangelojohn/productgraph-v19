@@ -14,6 +14,10 @@ class TestPgDocument(TransactionCase):
             cls.env.ref('product_graph_base.group_pg_engineer')
             | cls.env.ref('product_graph_base.group_pg_approver')
         )
+        # PG-120 SoD off — single-user lifecycle here is intentional.
+        cls.env['ir.config_parameter'].sudo().set_param(
+            'productgraph.enforce_sod', 'False',
+        )
 
     def _make_revision(self):
         cat = self.env.ref('product_graph_base.cat_mechanical')

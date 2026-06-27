@@ -12,6 +12,7 @@
                 <field name="target_date"/>
                 <field name="bid_count"/>
                 <field name="best_unit_price"/>
+                <field name="recommended_bid_id" optional="show"/>
                 <field name="awarded_bid_id"/>
                 <field name="rfq_state" widget="badge" optional="show"/>
             </list>

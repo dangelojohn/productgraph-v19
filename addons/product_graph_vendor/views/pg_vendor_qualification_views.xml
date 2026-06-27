@@ -13,6 +13,9 @@
                        decoration-success="decision == 'qualified'"
                        decoration-warning="decision == 'suspended'"
                        decoration-danger="decision == 'disqualified'"/>
+                <field name="valid_from" optional="hide"/>
+                <field name="valid_until" optional="show"/>
+                <field name="is_expired" optional="hide"/>
                 <field name="comment"/>
             </list>
         </field>

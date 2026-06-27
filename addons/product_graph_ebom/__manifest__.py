@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Engineering BOM',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.2.2',
     'category': 'Manufacturing/PLM',
     'summary': 'Multi-level engineering BOMs with materialized where-used closure',
     'description': """

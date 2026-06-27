@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PG-143: Role-aware Work Queue Landing.
+
+     Four window actions surface "what does the current user need to act on?"
+     scoped slices of work across the ProductGraph models. The actions live
+     in the ECO module because eco transitively depends on base + revision
+     and so can safely reference pg.eco, pg.revision, and the mail.activity
+     models on pg.* (Decision 7 module split). The four cards are linked
+     under a "My Work" sub-menu at the top of the ProductGraph menu tree,
+     and the root menu is re-pointed at "My Open ECOs" so a viewer landing
+     on the app sees their work queue, not an empty Items list. -->
+<odoo>
+
+    <!-- My open ECOs — requested by me OR assigned to me as engineering lead.
+         Includes draft because requestors typically iterate analyses in
+         draft before submitting. -->
+    <record id="action_pg_my_open_ecos" model="ir.actions.act_window">
+        <field name="name">My Open ECOs</field>
+        <field name="res_model">pg.eco</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[('state','in',('draft','analysis','approval','implementation')),'|',('requested_by_id','=',uid),('engineering_lead_id','=',uid)]</field>
+        <field name="context">{'search_default_filter_open': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No open ECOs assigned to you.</p>
+            <p>Either you've cleared your queue, or you haven't been added as
+               requestor or engineering lead on any in-flight ECO.</p>
+        </field>
+    </record>
+
+    <!-- Revisions awaiting my approval — excludes my own submissions so the
+         submitter never sees a self-approval row (PG-120 SoD support). -->
+    <record id="action_pg_revisions_awaiting_me" model="ir.actions.act_window">
+        <field name="name">Revisions Awaiting My Approval</field>
+        <field name="res_model">pg.revision</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state','=','review'),('submitted_by_id','!=',uid)]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No revisions waiting for you to approve.</p>
+        </field>
+    </record>
+
+    <!-- Overdue ECOs — past target_release_date and still in a working
+         state. Uses context_today() for a date-only compare. -->
+    <record id="action_pg_overdue_ecos" model="ir.actions.act_window">
+        <field name="name">Overdue ECOs</field>
+        <field name="res_model">pg.eco</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="domain">[('state','in',('analysis','approval','implementation')),('target_release_date','&lt;',context_today().strftime('%Y-%m-%d'))]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No ECOs are past their target release date.</p>
+        </field>
+    </record>
+
+    <!-- My open activities — direct mail.activity list scoped to the
+         ProductGraph models so the user can triage assignee work without
+         leaving the app. -->
+    <record id="action_pg_my_activities" model="ir.actions.act_window">
+        <field name="name">My ProductGraph Activities</field>
+        <field name="res_model">mail.activity</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('user_id','=',uid),('res_model','in',('pg.item','pg.revision','pg.ebom','pg.release','pg.eco'))]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No ProductGraph activities are assigned to you.</p>
+        </field>
+    </record>
+
+    <!-- ─── Menu structure ─────────────────────────────────────────────────
+         A new "My Work" group at sequence=5 placed before Engineering
+         (sequence=10) so it's the first menu the user reads. -->
+    <menuitem id="menu_pg_my_work"
+              name="My Work"
+              parent="product_graph_base.menu_pg_root"
+              sequence="5"/>
+
+    <menuitem id="menu_pg_my_work_ecos"
+              name="My Open ECOs"
+              parent="menu_pg_my_work"
+              action="action_pg_my_open_ecos"
+              sequence="10"/>
+
+    <menuitem id="menu_pg_my_work_revisions"
+              name="Revisions Awaiting Me"
+              parent="menu_pg_my_work"
+              action="action_pg_revisions_awaiting_me"
+              sequence="20"/>
+
+    <menuitem id="menu_pg_my_work_overdue"
+              name="Overdue ECOs"
+              parent="menu_pg_my_work"
+              action="action_pg_overdue_ecos"
+              sequence="30"/>
+
+    <menuitem id="menu_pg_my_work_activities"
+              name="My Activities"
+              parent="menu_pg_my_work"
+              action="action_pg_my_activities"
+              sequence="40"/>
+
+    <!-- Re-point the root menu at "My Open ECOs" so clicking ProductGraph
+         lands on the user's work, not an empty Items list. Defined here
+         because the action xmlid lives in this module. -->
+    <record id="product_graph_base.menu_pg_root" model="ir.ui.menu">
+        <field name="action" ref="action_pg_my_open_ecos"/>
+    </record>
+
+</odoo>

@@ -11,3 +11,5 @@ access_pg_document_engineer,pg.document engineer,model_pg_document,product_graph
 access_pg_document_admin,pg.document admin,model_pg_document,product_graph_base.group_pg_admin,1,1,1,1
 access_pg_rev_reject_wiz_engineer,pg.revision.reject.wizard engineer,model_pg_revision_reject_wizard,product_graph_base.group_pg_approver,1,1,1,1
 access_pg_rev_reject_wiz_admin,pg.revision.reject.wizard admin,model_pg_revision_reject_wizard,product_graph_base.group_pg_admin,1,1,1,1
+access_pg_apply_template_wizard_user,pg.apply.template.wizard user,model_pg_apply_template_wizard,product_graph_base.group_pg_user,1,1,1,1
+access_pg_apply_template_wizard_admin,pg.apply.template.wizard admin,model_pg_apply_template_wizard,product_graph_base.group_pg_admin,1,1,1,1

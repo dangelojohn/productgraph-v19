@@ -192,7 +192,7 @@ class ProductGraphPhase2API(http.Controller):
     # ──────────────────────────────────────────────────────────────────
     # ECO
     # ──────────────────────────────────────────────────────────────────
-    @http.route(f'{PG_BASE}/ecos', auth='user', methods=['GET'], csrf=False)
+    @http.route(f'{PG_BASE}/ecos', auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def list_ecos(self, **kw):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -216,7 +216,7 @@ class ProductGraphPhase2API(http.Controller):
         })
 
     @http.route(f'{PG_BASE}/ecos/<int:eco_id>',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def get_eco(self, eco_id, **kw):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -232,7 +232,7 @@ class ProductGraphPhase2API(http.Controller):
     # ──────────────────────────────────────────────────────────────────
     # Vendor / AVL
     # ──────────────────────────────────────────────────────────────────
-    @http.route(f'{PG_BASE}/vendors', auth='user', methods=['GET'], csrf=False)
+    @http.route(f'{PG_BASE}/vendors', auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def list_vendors(self, **kw):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -254,7 +254,7 @@ class ProductGraphPhase2API(http.Controller):
         })
 
     @http.route(f'{PG_BASE}/vendors/<int:vendor_id>',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def get_vendor(self, vendor_id, **kw):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -266,7 +266,7 @@ class ProductGraphPhase2API(http.Controller):
         return _json(_vendor_dict(vendor, detail=True))
 
     @http.route(f'{PG_BASE}/items/<int:item_id>/vendor-parts',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def list_vendor_parts_for_item(self, item_id, **kw):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -286,7 +286,7 @@ class ProductGraphPhase2API(http.Controller):
     # ──────────────────────────────────────────────────────────────────
     # RFQ
     # ──────────────────────────────────────────────────────────────────
-    @http.route(f'{PG_BASE}/rfqs', auth='user', methods=['GET'], csrf=False)
+    @http.route(f'{PG_BASE}/rfqs', auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def list_rfqs(self, **kw):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -310,7 +310,7 @@ class ProductGraphPhase2API(http.Controller):
         })
 
     @http.route(f'{PG_BASE}/rfqs/<int:rfq_id>',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def get_rfq(self, rfq_id, **kw):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -327,7 +327,7 @@ class ProductGraphPhase2API(http.Controller):
     # Relationship graph
     # ──────────────────────────────────────────────────────────────────
     @http.route(f'{PG_BASE}/items/<int:item_id>/relationships',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def relationships_for_item(self, item_id, **kw):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -350,7 +350,7 @@ class ProductGraphPhase2API(http.Controller):
         })
 
     @http.route(f'{PG_BASE}/items/<int:item_id>/substitutes',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def substitute_set_for_item(self, item_id, **kw):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -377,7 +377,7 @@ class ProductGraphPhase2API(http.Controller):
         })
 
     @http.route(f'{PG_BASE}/items/<int:item_id>/supersession-chain',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def supersession_chain_for_item(self, item_id, **kw):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -407,7 +407,7 @@ class ProductGraphPhase2API(http.Controller):
     # CAD
     # ──────────────────────────────────────────────────────────────────
     @http.route(f'{PG_BASE}/cad/connectors',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def list_cad_connectors(self, **kw):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -423,7 +423,7 @@ class ProductGraphPhase2API(http.Controller):
         })
 
     @http.route(f'{PG_BASE}/cad/connectors/<int:conn_id>',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def get_cad_connector(self, conn_id, **kw):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -438,7 +438,7 @@ class ProductGraphPhase2API(http.Controller):
         return _json(_cad_connector_dict(conn, detail=True))
 
     @http.route(f'{PG_BASE}/cad/connectors/<int:conn_id>/test',
-                auth='user', methods=['POST'], csrf=False)
+                auth='bearer', methods=['POST'], csrf=False)
     @_safe
     def test_cad_connector(self, conn_id, **kw):
         err = _check_group('product_graph_base.group_pg_engineer')

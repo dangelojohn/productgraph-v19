@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pg_force_release_wizard_form" model="ir.ui.view">
+        <field name="name">pg.force.release.wizard.form</field>
+        <field name="model">pg.force.release.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Force Release Justification">
+                <div class="alert alert-danger" role="alert">
+                    <strong>WARNING:</strong> Force Release bypasses normal release governance and is fully audited.
+                </div>
+                <group>
+                    <field name="item_id" readonly="1"/>
+                    <field name="reason" placeholder="Explain why this item must be released outside the normal gates (min 20 chars). e.g. 'Customer escalation #4567 — physical sample is already shipping; engineering close-out follows next week per approval from Eng Lead.'"/>
+                    <field name="confirm"/>
+                </group>
+                <footer>
+                    <button string="Force Release" name="action_confirm" type="object" class="btn-danger" invisible="not confirm"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

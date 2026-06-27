@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Relationship Engine',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Directed-edge engineering relationships between pg.items '
                '(substitutes, alternates, supersedes, references)',

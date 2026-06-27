@@ -30,6 +30,10 @@ AWARDED_LOCKED_FIELDS = {
     'line_ids',
 }
 
+# Open states for the auto-draft dedupe lookup (no point auto-drafting a
+# second RFQ if one is already in flight for the same item).
+RFQ_OPEN_STATES = ('draft', 'sent', 'received')
+
 
 class PgRfq(models.Model):
     _name = 'pg.rfq'
@@ -49,6 +53,26 @@ class PgRfq(models.Model):
     title = fields.Char(string='Title', required=True, tracking=True)
     description = fields.Html(string='Description')
 
+    # Optional single-item shortcut. Auto-drafted RFQs (cron-created) set
+    # this so the dedupe lookup can match by item. Manual RFQs may leave it
+    # empty and rely on line_ids.
+    item_id = fields.Many2one(
+        'pg.item', string='Primary Item',
+        index=True, ondelete='restrict',
+        help='Primary item this RFQ is sourcing. Set by the auto-draft '
+             'cron; manual RFQs may use line_ids alone.',
+    )
+    auto_drafted = fields.Boolean(
+        string='Auto-Drafted',
+        default=False, readonly=True, copy=False,
+        help='True when this RFQ was created by the unsourced-items cron.',
+    )
+    reason = fields.Text(
+        string='Reason',
+        help='Human-readable rationale for the RFQ. Populated by the auto-'
+             'draft cron; editable in draft for context.',
+    )
+
     state = fields.Selection(
         RFQ_STATES, string='State', required=True, default='draft',
         copy=False, tracking=True,
@@ -63,8 +87,8 @@ class PgRfq(models.Model):
     awarded_on = fields.Datetime(string='Awarded On', readonly=True, copy=False)
 
     line_ids = fields.One2many('pg.rfq.line', 'rfq_id', string='Lines')
-    line_count = fields.Integer(compute='_compute_counts')
-    bid_count = fields.Integer(compute='_compute_counts')
+    line_count = fields.Integer(compute='_compute_counts', store=True)
+    bid_count = fields.Integer(compute='_compute_counts', store=True)
 
     promote_to_preferred = fields.Boolean(
         string='Promote Winners to Preferred',
@@ -242,3 +266,114 @@ class PgRfq(models.Model):
             if other:
                 other.write({'is_preferred': False})
             part.write({'is_preferred': True})
+
+    # ──────────────────────────────────────────────────────────────────
+    # Auto-draft cron (PG-133 task 1)
+    # ──────────────────────────────────────────────────────────────────
+    @api.model
+    def _cron_auto_draft_missing_rfqs(self):
+        """Daily sweep: draft RFQs for purchased items lacking a qualified
+        AVL vendor. Recommendation-only — the RFQ stays in 'draft' so a
+        human still has to confirm pricing and click Send / Award."""
+        Item = self.env['pg.item']
+        items = Item.search([
+            ('item_type', '=', 'purchased'),
+            ('state', 'in', ('engineering', 'released')),
+            ('active', '=', True),
+        ])
+        created = self.env['pg.rfq']
+        for item in items:
+            qualified = item.vendor_part_ids.filtered(
+                lambda vp: vp.vendor_id.state == 'qualified' and vp.active
+            )
+            if qualified:
+                continue
+            existing = self.search([
+                ('item_id', '=', item.id),
+                ('state', 'in', list(RFQ_OPEN_STATES)),
+            ], limit=1)
+            if existing:
+                continue
+            rfq = self._auto_draft_for_item(item)
+            if rfq:
+                created |= rfq
+        if created:
+            _logger.info(
+                "Auto-drafted %d RFQs for unsourced purchased items",
+                len(created),
+            )
+        return created
+
+    @api.model
+    def _auto_draft_for_item(self, item):
+        """Build a draft RFQ for a purchased item and seed placeholder bids
+        for every qualified vendor whose category_ids include the item's
+        category. Returns the created ``pg.rfq`` or ``False`` if there were
+        no candidate vendors."""
+        if not item.category_id:
+            _logger.warning(
+                "pg.item %s has no category — auto-RFQ skipped.",
+                item.display_name,
+            )
+            return False
+        Vendor = self.env['pg.vendor']
+        category_vendors = Vendor.search([
+            ('category_ids', 'in', item.category_id.id),
+            ('state', '=', 'qualified'),
+            ('active', '=', True),
+        ])
+        if not category_vendors:
+            _logger.warning(
+                "pg.item %s in category %s has no qualified category "
+                "vendors — auto-RFQ skipped.",
+                item.display_name, item.category_id.complete_name,
+            )
+            return False
+        title = _("Auto-RFQ for %s") % (item.part_number or item.display_name)
+        reason = _(
+            "Auto-drafted: item %(item)s is in state %(state)s with no "
+            "qualified AVL vendor. Candidate vendors selected by category "
+            "%(cat)s."
+        ) % {
+            'item': item.display_name,
+            'state': item.state,
+            'cat': item.category_id.complete_name,
+        }
+        rfq = self.sudo().create({
+            'title': title,
+            'item_id': item.id,
+            'auto_drafted': True,
+            'reason': reason,
+        })
+        line = self.env['pg.rfq.line'].sudo().create({
+            'rfq_id': rfq.id,
+            'item_id': item.id,
+            'qty': 1.0,
+            'spec_notes': reason,
+        })
+        Bid = self.env['pg.rfq.bid'].sudo()
+        for vendor in category_vendors:
+            Bid.create({
+                'line_id': line.id,
+                'vendor_id': vendor.id,
+                'unit_price': 0.0,
+                'is_awarded': False,
+            })
+        item.message_post(
+            body=_(
+                "Auto-drafted RFQ <b>%s</b> seeded with %d candidate "
+                "vendor(s) — review pricing and send."
+            ) % (rfq.display_name, len(category_vendors)),
+            subtype_xmlid='mail.mt_log_note',
+        )
+        self.env['pg.audit.log'].sudo()._log(
+            rfq, 'other',
+            from_state=None, to_state='draft',
+            notes=_('Auto-drafted RFQ for unsourced item %s') % item.display_name,
+            payload={
+                'item_id': item.id,
+                'category_id': item.category_id.id,
+                'candidate_vendor_ids': category_vendors.ids,
+            },
+        )
+        return rfq

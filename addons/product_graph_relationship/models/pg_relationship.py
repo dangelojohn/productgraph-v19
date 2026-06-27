@@ -109,6 +109,9 @@ class PgRelationship(models.Model):
     def create(self, vals_list):
         recs = super().create(vals_list)
         if not self.env.context.get('_pg_relationship_skip_closure'):
+            # Flush so the recursive-CTE rebuild sees the new rows
+            # (the closure SQL reads pg_relationship directly).
+            recs.flush_recordset()
             self._rebuild_closure_for_kinds(set(recs.mapped('kind')))
         return recs
 
@@ -120,6 +123,10 @@ class PgRelationship(models.Model):
         if 'kind' in vals or 'source_item_id' in vals \
                 or 'target_item_id' in vals or 'active' in vals:
             if not self.env.context.get('_pg_relationship_skip_closure'):
+                # Flush pending writes so the recursive-CTE rebuild
+                # sees the new active / kind values (the closure SQL
+                # reads pg_relationship directly via cr.execute).
+                self.flush_recordset()
                 self._rebuild_closure_for_kinds(before | after)
         return result
 

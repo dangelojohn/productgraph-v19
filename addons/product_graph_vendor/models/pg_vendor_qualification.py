@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo import _, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 
@@ -35,6 +35,23 @@ class PgVendorQualification(models.Model):
         string='Decided On', required=True, default=fields.Datetime.now,
     )
     comment = fields.Text(string='Comment')
+
+    # PG-133 — qualification validity window. Optional so legacy rows keep
+    # working. The expiry cron only looks at rows with valid_until set.
+    valid_from = fields.Date(string='Valid From')
+    valid_until = fields.Date(string='Valid Until', index=True)
+    is_expired = fields.Boolean(
+        compute='_compute_is_expired',
+        store=False,
+        string='Expired',
+        help='True when valid_until is in the past.',
+    )
+
+    @api.depends('valid_until')
+    def _compute_is_expired(self):
+        today = fields.Date.context_today(self)
+        for rec in self:
+            rec.is_expired = bool(rec.valid_until and rec.valid_until < today)
 
     def write(self, vals):
         raise UserError(_(

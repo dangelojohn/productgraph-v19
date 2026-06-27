@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- Cabinetry-relevant Engineering Categories (PG-145).
+         Configurable data, NOT hard-coded. Admins may rename, add, or
+         deactivate via the Configuration > Engineering Categories menu. -->
+
+    <record id="category_cabinetry_root" model="pg.category">
+        <field name="name">Cabinetry</field>
+        <field name="code">CAB</field>
+    </record>
+
+    <record id="category_casework" model="pg.category">
+        <field name="name">Casework</field>
+        <field name="code">CAB-CASE</field>
+        <field name="parent_id" ref="category_cabinetry_root"/>
+    </record>
+
+    <record id="category_doors_drawers" model="pg.category">
+        <field name="name">Doors &amp; Drawers</field>
+        <field name="code">CAB-DD</field>
+        <field name="parent_id" ref="category_cabinetry_root"/>
+    </record>
+
+    <record id="category_hardware_hinges_slides" model="pg.category">
+        <field name="name">Hardware — Hinges &amp; Slides</field>
+        <field name="code">CAB-HW-HS</field>
+        <field name="parent_id" ref="category_cabinetry_root"/>
+    </record>
+
+    <record id="category_hardware_pulls" model="pg.category">
+        <field name="name">Hardware — Pulls &amp; Knobs</field>
+        <field name="code">CAB-HW-PK</field>
+        <field name="parent_id" ref="category_cabinetry_root"/>
+    </record>
+
+    <record id="category_edgebanding" model="pg.category">
+        <field name="name">Edgebanding</field>
+        <field name="code">CAB-EDGE</field>
+        <field name="parent_id" ref="category_cabinetry_root"/>
+    </record>
+
+    <record id="category_laminate_veneer" model="pg.category">
+        <field name="name">Laminate &amp; Veneer</field>
+        <field name="code">CAB-LAM</field>
+        <field name="parent_id" ref="category_cabinetry_root"/>
+    </record>
+
+    <record id="category_panels" model="pg.category">
+        <field name="name">Panels (MDF / Ply / Particle)</field>
+        <field name="code">CAB-PNL</field>
+        <field name="parent_id" ref="category_cabinetry_root"/>
+    </record>
+
+    <record id="category_fasteners" model="pg.category">
+        <field name="name">Fasteners</field>
+        <field name="code">CAB-FST</field>
+        <field name="parent_id" ref="category_cabinetry_root"/>
+    </record>
+
+    <record id="category_finishing_cab" model="pg.category">
+        <field name="name">Finishing — Stains / Lacquers / Sealers</field>
+        <field name="code">CAB-FIN</field>
+        <field name="parent_id" ref="category_cabinetry_root"/>
+    </record>
+
+    <record id="category_glass_glazing" model="pg.category">
+        <field name="name">Glass &amp; Glazing</field>
+        <field name="code">CAB-GL</field>
+        <field name="parent_id" ref="category_cabinetry_root"/>
+    </record>
+
+    <record id="category_countertops" model="pg.category">
+        <field name="name">Countertops</field>
+        <field name="code">CAB-CT</field>
+        <field name="parent_id" ref="category_cabinetry_root"/>
+    </record>
+
+</odoo>

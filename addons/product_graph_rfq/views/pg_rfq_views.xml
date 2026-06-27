@@ -13,6 +13,8 @@
                 <field name="name"/>
                 <field name="title"/>
                 <field name="state" widget="badge"/>
+                <field name="item_id" optional="hide"/>
+                <field name="auto_drafted" optional="hide" widget="boolean_toggle"/>
                 <field name="requestor_id"/>
                 <field name="line_count" string="# Lines"/>
                 <field name="bid_count" string="# Bids"/>
@@ -43,6 +45,8 @@
                         domain="[('state', '=', 'awarded')]"/>
                 <filter name="filter_mine" string="My RFQs"
                         domain="[('requestor_id', '=', uid)]"/>
+                <filter name="filter_auto_drafted" string="Auto-Drafted"
+                        domain="[('auto_drafted', '=', True)]"/>
                 <group>
                     <filter name="group_state" string="State"
                             context="{'group_by': 'state'}"/>
@@ -91,12 +95,18 @@
                             <field name="requestor_id"/>
                             <field name="due_date"/>
                             <field name="promote_to_preferred"/>
+                            <field name="item_id" readonly="state != 'draft'"
+                                   options="{'no_create_edit': True}"/>
                         </group>
                         <group>
                             <field name="sent_on" readonly="1"/>
                             <field name="awarded_on" readonly="1"/>
+                            <field name="auto_drafted" readonly="1"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
+                    </group>
+                    <group string="Reason" invisible="not reason">
+                        <field name="reason" nolabel="1" readonly="state != 'draft'"/>
                     </group>
                     <notebook>
                         <page string="Description" name="description">
@@ -111,27 +121,43 @@
                                     <field name="target_date"/>
                                     <field name="bid_count"/>
                                     <field name="best_unit_price"/>
+                                    <field name="recommended_bid_id" readonly="1"
+                                           decoration-info="recommended_bid_id"/>
                                     <field name="awarded_bid_id" readonly="1"/>
                                     <field name="spec_notes" optional="hide"/>
                                 </list>
                                 <form>
                                     <group>
-                                        <field name="item_id"/>
-                                        <field name="qty"/>
-                                        <field name="target_date"/>
+                                        <group>
+                                            <field name="item_id"/>
+                                            <field name="qty"/>
+                                            <field name="target_date"/>
+                                        </group>
+                                        <group>
+                                            <label for="recommended_bid_id" string="Recommended"/>
+                                            <div>
+                                                <field name="recommended_bid_id" readonly="1" nolabel="1"/>
+                                                <span class="badge text-bg-info ms-2"
+                                                      invisible="not recommended_bid_id">
+                                                    Suggested — pick the Awarded toggle to confirm
+                                                </span>
+                                            </div>
+                                        </group>
                                     </group>
                                     <group string="Spec Notes">
                                         <field name="spec_notes" nolabel="1"/>
                                     </group>
                                     <group string="Bids">
                                         <field name="bid_ids" nolabel="1">
-                                            <list editable="bottom">
+                                            <list editable="bottom"
+                                                  decoration-success="is_awarded">
                                                 <field name="vendor_id"/>
                                                 <field name="vendor_part_number"/>
                                                 <field name="unit_price"/>
                                                 <field name="currency_id"/>
                                                 <field name="moq"/>
                                                 <field name="lead_time_days"/>
+                                                <field name="score" readonly="1" optional="show"/>
                                                 <field name="valid_until"/>
                                                 <field name="is_awarded" widget="boolean_toggle"/>
                                                 <field name="comment" optional="hide"/>

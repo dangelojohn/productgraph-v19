@@ -14,6 +14,7 @@
                 <field name="currency_id" optional="hide"/>
                 <field name="moq"/>
                 <field name="lead_time_days"/>
+                <field name="score" optional="show"/>
                 <field name="valid_until"/>
                 <field name="is_awarded" widget="boolean_toggle"/>
                 <field name="rfq_state" widget="badge" optional="hide"/>

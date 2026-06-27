@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Add PG provenance fields to mrp.bom form -->
+    <record id="view_mrp_bom_form_pg" model="ir.ui.view">
+        <field name="name">mrp.bom.form.pg</field>
+        <field name="model">mrp.bom</field>
+        <field name="inherit_id" ref="mrp.mrp_bom_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='code']" position="after">
+                <field name="pg_release_id" readonly="1"
+                       invisible="not pg_release_id"
+                       groups="product_graph_base.group_pg_viewer"/>
+                <field name="superseded_by_release_id" readonly="1"
+                       invisible="not superseded_by_release_id"
+                       groups="product_graph_base.group_pg_viewer"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

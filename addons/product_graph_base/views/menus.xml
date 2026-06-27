@@ -47,8 +47,10 @@
               sequence="90"
               groups="product_graph_base.group_pg_engineer"/>
 
+    <!-- PG-142: Shortened label "Engineering Categories" -> "Categories"
+         so the Configuration submenu pane fits on narrower viewports. -->
     <menuitem id="menu_pg_category"
-              name="Engineering Categories"
+              name="Categories"
               parent="menu_pg_config"
               action="action_pg_category"
               sequence="10"/>

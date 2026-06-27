@@ -156,4 +156,54 @@ or flip.
 
 ---
 
+## D9 — Runtime config via ir.config_parameter, not hardcoded toggles (2026-06-27)
+
+**Decision.** All Phase 2 automation behaviors are gated by `ir.config_parameter`
+keys, not by hardcoded `if`/`elif` branches. Eight ICP keys exist (all default
+`True`):
+
+```
+productgraph.enforce_sod
+productgraph.auto_advance_item_on_revision_release
+productgraph.auto_close_eco_on_all_revisions_released
+productgraph.auto_spawn_revision_from_eco_line
+productgraph.notify_on_auto_advance
+productgraph.eco_impact_explode_enabled
+productgraph.eco_route_on_submit
+productgraph.eco_sla_enabled
+```
+
+A `res.config.settings` panel (added by PG-125) surfaces the toggles under
+Settings → ProductGraph. Direct edits in `ir.config_parameter` also work.
+
+**Why.** Hardcoded toggles require a code release to flip; ICP keys let admins
+disable misbehaving automation without a redeploy. Defaulting to `True` keeps
+the out-of-the-box experience opinionated while preserving an escape hatch.
+Mirrors the pattern used by other Odoo automation modules (mail aliases,
+inventory rules) and is more discoverable than environment variables.
+
+**Owner.** Human user.
+
+---
+
+## D10 — AbstractLifecycleMixin (in progress, PG-110)
+
+**Decision (pending).** Factor the shared state-machine machinery used by
+`pg.item`, `pg.revision`, `pg.ebom`, `pg.eco`, and `pg.vendor` into an
+`AbstractLifecycleMixin` that owns: state field declaration, transition
+validation, audit-log write, chatter post, notification fire. Concrete models
+declare allowed transitions and per-state guards.
+
+**Status.** PG-110 in progress at time of writing. The five lifecycle models
+each duplicate ~80 LoC of state-handling boilerplate today; the mixin collapses
+them.
+
+**Why.** Reduces drift between lifecycle models (R4 audit-log + chatter
+discipline is currently enforced by copy-paste). New lifecycle models (Phase 3
+candidates) inherit the discipline for free.
+
+**Owner.** Agent (PG-110), to be confirmed by human user when the mixin lands.
+
+---
+
 *Decisions are sealed by initials + date in commit messages once acted on.*

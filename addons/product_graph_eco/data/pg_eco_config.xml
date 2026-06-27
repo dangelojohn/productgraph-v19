@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    PG-130 / PG-131 / PG-132 / PG-134 — Lifecycle auto-advance + ECO
+    auto-close + impact-explode + SLA/routing ICP seed.
+
+    noupdate="1" so admin runtime toggles survive `-u`.
+
+    Keys:
+      productgraph.auto_advance_item_on_revision_release
+          Default True. When True, pg.item._auto_release_from_revision
+          promotes the parent item from engineering -> released on the
+          first revision release.
+      productgraph.auto_close_eco_on_all_revisions_released
+          Default True. When True, pg.eco._check_close_on_all_released
+          flips the ECO to released once every governed line's
+          to_revision_id is itself released/superseded.
+      productgraph.auto_spawn_revision_from_eco_line
+          Default True. When True, the "Spawn Target Revision" button on
+          pg.eco.line clones the predecessor into a fresh draft revision.
+      productgraph.notify_on_auto_advance
+          Default True. When True, the cascade schedules a follow-up
+          activity on the assignee (engineering lead, else requestor) after
+          an auto-close so a human reviews and decides whether to archive.
+      productgraph.eco_impact_explode_enabled    (PG-132)
+          Default True. When True, the "Explode Impact" button on a
+          pg.eco.line opens the impact wizard with closure-derived
+          downstream-assembly candidates.
+      productgraph.eco_route_on_submit           (PG-134)
+          Default True. When True, action_submit_for_approval schedules a
+          Todo activity on the engineering lead (or first approver-group
+          user) and posts a routing note to chatter.
+      productgraph.eco_sla_enabled               (PG-134)
+          Default True. When True, the daily _cron_sla_reminders sweep
+          posts reminders for ECOs within 3 days of Target Release Date
+          and bumps escalation_level (capped at 2) for overdue items.
+-->
+<odoo noupdate="1">
+    <record id="ir_config_parameter_auto_advance_item" model="ir.config_parameter">
+        <field name="key">productgraph.auto_advance_item_on_revision_release</field>
+        <field name="value">True</field>
+    </record>
+    <record id="ir_config_parameter_eco_autoclose" model="ir.config_parameter">
+        <field name="key">productgraph.auto_close_eco_on_all_revisions_released</field>
+        <field name="value">True</field>
+    </record>
+    <record id="ir_config_parameter_auto_spawn_revision" model="ir.config_parameter">
+        <field name="key">productgraph.auto_spawn_revision_from_eco_line</field>
+        <field name="value">True</field>
+    </record>
+    <record id="ir_config_parameter_notify_auto_advance" model="ir.config_parameter">
+        <field name="key">productgraph.notify_on_auto_advance</field>
+        <field name="value">True</field>
+    </record>
+    <!-- PG-132 -->
+    <record id="ir_config_parameter_eco_impact_explode" model="ir.config_parameter">
+        <field name="key">productgraph.eco_impact_explode_enabled</field>
+        <field name="value">True</field>
+    </record>
+    <!-- PG-134 -->
+    <record id="ir_config_parameter_eco_route_on_submit" model="ir.config_parameter">
+        <field name="key">productgraph.eco_route_on_submit</field>
+        <field name="value">True</field>
+    </record>
+    <record id="ir_config_parameter_eco_sla_enabled" model="ir.config_parameter">
+        <field name="key">productgraph.eco_sla_enabled</field>
+        <field name="value">True</field>
+    </record>
+
+    <!-- PG-134 — Daily SLA reminder + escalation cron. -->
+    <record id="ir_cron_eco_sla_reminders" model="ir.cron">
+        <field name="name">ProductGraph: ECO SLA reminders + escalation</field>
+        <field name="model_id" ref="model_pg_eco"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_sla_reminders()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

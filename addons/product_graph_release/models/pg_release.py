@@ -37,12 +37,34 @@ RELEASE_STATES = [
     ('failed', 'Failed'),
 ]
 
+# Authoritative transition map lives on PgRelease.LIFECYCLE_TRANSITIONS;
+# this module-level alias preserves the legacy attribute path for any
+# external sibling code that reached in for it.
+_RELEASE_TRANSITIONS = {
+    'pending':   ['executing'],
+    'executing': ['completed', 'failed'],
+    'completed': [],
+    'failed':    ['pending'],   # action_reset_to_pending
+}
+
 
 class PgRelease(models.Model):
     _name = 'pg.release'
     _description = 'ProductGraph Release Record'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['pg.lifecycle.mixin', 'mail.thread', 'mail.activity.mixin']
     _order = 'release_timestamp desc, id desc'
+
+    # ─── Lifecycle mixin config ──────────────────────────────────────────────
+    LIFECYCLE_STATES = RELEASE_STATES
+    LIFECYCLE_TRANSITIONS = _RELEASE_TRANSITIONS
+    LIFECYCLE_BYPASS_KEY = '_pg_release_bypass'
+    LIFECYCLE_MUTABLE_LOCKED = frozenset({
+        'state', 'active',
+        'message_ids', 'message_follower_ids', 'activity_ids',
+    })
+    # Only 'completed' is the immutable state; 'failed' can be reset to
+    # 'pending' so we don't lock it. Declared explicitly to be defensive.
+    LIFECYCLE_TERMINAL_STATES = frozenset({'completed'})
 
     name = fields.Char(
         string='Release Reference',
@@ -156,11 +178,6 @@ class PgRelease(models.Model):
         readonly=True,
     )
 
-    _MUTABLE_ON_COMPLETED = frozenset({
-        'state', 'active',
-        'message_ids', 'message_follower_ids', 'activity_ids',
-    })
-
     # ═════════════════════════════════════════════════════════════════════════
     # ORM overrides
     # ═════════════════════════════════════════════════════════════════════════
@@ -174,18 +191,7 @@ class PgRelease(models.Model):
                 )
         return super().create(vals_list)
 
-    def write(self, vals):
-        for rec in self:
-            if rec.state == 'completed':
-                blocked = set(vals.keys()) - self._MUTABLE_ON_COMPLETED
-                if blocked:
-                    raise UserError(_(
-                        "Release %(name)s is Completed and immutable.\n"
-                        "Blocked fields: %(fields)s.",
-                        name=rec.name,
-                        fields=', '.join(sorted(blocked)),
-                    ))
-        return super().write(vals)
+    # write() — immutability enforcement provided by pg.lifecycle.mixin.
 
     def unlink(self):
         for rec in self:
@@ -215,9 +221,21 @@ class PgRelease(models.Model):
         revision = self.revision_id
         item = self.root_item_id
 
+        # Idempotency gate — block a second release of the same (ebom, revision)
+        # pair before flipping state. We want UserError to leave us pending,
+        # not stuck in 'executing'. R1 spirit: re-release of the same revision
+        # is never a real engineering event; the user wants Supersede.
+        self._check_idempotency(ebom, revision)
+
+        # OUTSIDE the savepoint: 'executing' marker persists across rollback
+        # so observers (UI, async jobs) see we touched the release.
         self.write({'state': 'executing'})
 
         try:
+            # INSIDE the savepoint: all writes below are atomic. On exception
+            # the savepoint context manager rolls EVERYTHING back: the new
+            # mrp.bom + lines, the old-bom archive flip, the freeze-MO chatter
+            # posts, the success audit log, the release-completion write.
             with self.env.cr.savepoint():
                 # Step 1 — validate
                 self._validate_pre_release(ebom, revision, item)
@@ -225,10 +243,14 @@ class PgRelease(models.Model):
                 # Step 2 — ensure product
                 product = self._ensure_product(item)
 
-                # Step 3 — collect previous BOM for archive / freeze
+                # Step 3 — collect previous BOM for archive / freeze.
+                # Filter to BOMs we previously created (pg_release_id set);
+                # external manually-made mrp.boms on the same product are
+                # explicitly left alone (R1 + Manufacturing-Governance §5).
                 old_bom = self.env['mrp.bom'].search([
                     ('product_tmpl_id', '=', product.product_tmpl_id.id),
                     ('active', '=', True),
+                    ('pg_release_id', '!=', False),
                 ], limit=1)
 
                 # Step 4 — freeze open MOs on previous BOM (MG-1)
@@ -240,9 +262,13 @@ class PgRelease(models.Model):
                 # Step 5 — create new mrp.bom (THE ONLY PLACE)
                 mrp_bom = self._create_mrp_bom(ebom, revision, product)
 
-                # Step 6 — archive previous (MG-5)
+                # Step 6 — archive previous (MG-5) and stamp the supersede
+                # back-reference so the historical BOM remains traceable.
                 if old_bom and self.archive_previous_bom:
-                    old_bom.write({'active': False})
+                    old_bom.write({
+                        'active': False,
+                        'superseded_by_release_id': self.id,
+                    })
                     _logger.info(
                         'Archived previous mrp.bom %s for product %s',
                         old_bom.display_name, product.display_name,
@@ -282,10 +308,15 @@ class PgRelease(models.Model):
 
         except Exception as exc:
             _logger.exception('pg.release %s FAILED', self.name)
-            # The savepoint context manager has already rolled back the inner
-            # work. The state='executing' marker (written outside the
-            # savepoint) gets overwritten below by state='failed', so the
-            # final committed state is correct.
+            # OUTSIDE the savepoint: by the time this except: block runs the
+            # savepoint context manager has already rolled the inner work
+            # back. Everything we write here lands in the OUTER transaction
+            # and survives — that's deliberate:
+            #   * state='failed' so the UI shows the outcome
+            #   * failure_reason so a human can diagnose
+            #   * pg.audit.log entry (R4) — must survive rollback so we have
+            #     a tamper-evident record that the release was attempted and
+            #     failed, even though the BOM work was undone.
             #
             # NB: do NOT call self.env.cr.rollback() here. It rolls back the
             # entire outer transaction (including the caller's prior work)
@@ -316,6 +347,35 @@ class PgRelease(models.Model):
     # ═════════════════════════════════════════════════════════════════════════
     # Internal helpers
     # ═════════════════════════════════════════════════════════════════════════
+
+    def _check_idempotency(self, ebom, revision):
+        """Block re-release of the same (ebom, revision) pair.
+
+        Per R1, each engineering revision is the unit of release. Re-releasing
+        the same revision would create a duplicate ``mrp.bom`` (the historical
+        one is archived but still exists), which corrupts traceability:
+        future MOs created on the new BOM would have no honest way to point
+        back to a single canonical release.
+
+        If a prior ``pg.release`` for this (ebom, revision) is already in
+        ``completed`` state, raise UserError and instruct the user to
+        Supersede the EBOM (i.e. issue a new revision) instead.
+        """
+        prior = self.search([
+            ('ebom_id', '=', ebom.id),
+            ('revision_id', '=', revision.id),
+            ('state', '=', 'completed'),
+            ('id', '!=', self.id),
+        ], limit=1)
+        if prior:
+            raise UserError(_(
+                "This EBOM revision has already been released by %(prior)s "
+                "(mrp.bom %(bom)s).\n"
+                "Use Supersede on the EBOM if you intend to issue a new "
+                "revision.",
+                prior=prior.name,
+                bom=prior.mrp_bom_id.display_name or _('(missing)'),
+            ))
 
     def _validate_pre_release(self, ebom, revision, item):
         """Run the same checks the wizard surfaces, server-side, for safety."""
@@ -401,6 +461,10 @@ class PgRelease(models.Model):
             'type': 'normal',
             'product_qty': 1.0,
             'code': f'{ebom.root_item_id.part_number}-{revision.name}',
+            # Provenance stamp — identifies this BOM as one we created so the
+            # next release's old-bom search can find it without sweeping
+            # external manual mrp.boms (R1 + MG-§5).
+            'pg_release_id': self.id,
         }
         mrp_bom = self.env['mrp.bom'].create(bom_vals)
         _logger.info(
@@ -515,6 +579,75 @@ class PgRelease(models.Model):
                 item=self.root_item_id.display_name,
                 rel=self.name,
             ), subtype_xmlid='mail.mt_note')
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # Scheduled jobs
+    # ═════════════════════════════════════════════════════════════════════════
+
+    @api.model
+    def _cron_followup_frozen_mos(self):
+        """Daily — surface still-open frozen MOs as activities for Mfg.
+
+        For each completed release with frozen_mo_ids that remain in
+        draft/confirmed/progress, create one mail.activity on the MO assigned
+        to the Manufacturing group asking a human to decide: migrate or
+        complete-as-is. Idempotent — skips MOs that already have an open
+        pg-frozen activity outstanding.
+        """
+        completed = self.search([
+            ('state', '=', 'completed'),
+            ('frozen_mo_ids', '!=', False),
+        ])
+        if not completed:
+            return 0
+        activity_type = self.env.ref(
+            'mail.mail_activity_data_todo', raise_if_not_found=False,
+        )
+        if not activity_type:
+            _logger.warning('pg.release cron: mail.mail_activity_data_todo missing; skipping')
+            return 0
+        mfg_group = self.env.ref(
+            'product_graph_base.group_pg_mfg', raise_if_not_found=False,
+        )
+        mfg_users = (
+            self.env['res.users'].search([('group_ids', 'in', mfg_group.id)])
+            if mfg_group else self.env['res.users']
+        )
+        assignee = mfg_users[:1] or self.env.ref('base.user_admin', raise_if_not_found=False)
+        if not assignee:
+            return 0
+        mo_model = self.env['ir.model']._get('mrp.production')
+        created = 0
+        for rel in completed:
+            still_open = rel.frozen_mo_ids.filtered(
+                lambda mo: mo.state in ('draft', 'confirmed', 'progress')
+            )
+            for mo in still_open:
+                existing = self.env['mail.activity'].search_count([
+                    ('res_model', '=', 'mrp.production'),
+                    ('res_id', '=', mo.id),
+                    ('activity_type_id', '=', activity_type.id),
+                    ('summary', '=like', 'PG-FROZEN%'),
+                ])
+                if existing:
+                    continue
+                self.env['mail.activity'].create({
+                    'res_model_id': mo_model.id,
+                    'res_id': mo.id,
+                    'activity_type_id': activity_type.id,
+                    'summary': f'PG-FROZEN: review MO vs release {rel.name}',
+                    'note': _(
+                        'A new ProductGraph release (%(rel)s) superseded the '
+                        'BOM this MO was started on. Decide: migrate this MO '
+                        'to the new BOM, or let it complete on the old one.',
+                        rel=rel.name,
+                    ),
+                    'user_id': assignee.id,
+                })
+                created += 1
+        if created:
+            _logger.info('pg.release frozen-MO cron created %d activities', created)
+        return created
 
     # ═════════════════════════════════════════════════════════════════════════
     # UI actions

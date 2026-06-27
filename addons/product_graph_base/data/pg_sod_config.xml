@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- PG-120: Segregation of Duties enforcement toggle.
+             True (default) blocks self-approval / self-release on pg.revision
+             and pg.eco. Set to False for single-engineer environments or
+             during data migration. Lives in ir.config_parameter so it can be
+             toggled at runtime without a module upgrade. -->
+        <record id="ir_config_parameter_enforce_sod" model="ir.config_parameter">
+            <field name="key">productgraph.enforce_sod</field>
+            <field name="value">True</field>
+        </record>
+    </data>
+</odoo>

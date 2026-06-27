@@ -1,0 +1,21 @@
+name: ProductGraph tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint counter antipattern (PG-107)
+        run: python scripts/lint_counter_antipattern.py
+
+      - name: Run Odoo test harness
+        run: |
+          chmod +x scripts/run_tests.sh
+          ./scripts/run_tests.sh

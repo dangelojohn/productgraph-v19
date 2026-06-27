@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_pg" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.pg</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="50"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="ProductGraph" string="ProductGraph" name="product_graph">
+                    <block title="Governance" name="pg_governance">
+                        <setting id="pg_sod" string="Segregation of Duties"
+                                 help="Same user cannot submit and approve the same change.">
+                            <field name="pg_enforce_sod"/>
+                        </setting>
+                    </block>
+                    <block title="Lifecycle Automation" name="pg_lifecycle">
+                        <setting id="pg_auto_adv" string="Auto-advance item on revision release">
+                            <field name="pg_auto_advance_item_on_revision_release"/>
+                        </setting>
+                        <setting id="pg_notify" string="Notify on auto-advance/close">
+                            <field name="pg_notify_on_auto_advance"/>
+                        </setting>
+                    </block>
+                    <block title="ECO Workflow" name="pg_eco">
+                        <setting id="pg_eco_autoclose" string="Auto-close ECO on all revisions released">
+                            <field name="pg_auto_close_eco_on_all_revisions_released"/>
+                        </setting>
+                        <setting id="pg_eco_spawn" string="Allow auto-spawn revision from ECO line">
+                            <field name="pg_auto_spawn_revision_from_eco_line"/>
+                        </setting>
+                        <setting id="pg_eco_explode" string="ECO Impact Explode">
+                            <field name="pg_eco_impact_explode_enabled"/>
+                        </setting>
+                        <setting id="pg_eco_route" string="Auto-route submitted ECOs">
+                            <field name="pg_eco_route_on_submit"/>
+                        </setting>
+                        <setting id="pg_eco_sla" string="ECO SLA reminders + escalation">
+                            <field name="pg_eco_sla_enabled"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_pg_settings" model="ir.actions.act_window">
+        <field name="name">ProductGraph Settings</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_id" ref="res_config_settings_view_form_pg"/>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="context">{'module': 'product_graph_base'}</field>
+    </record>
+
+    <menuitem id="menu_pg_settings"
+              name="Settings"
+              parent="menu_pg_config"
+              action="action_pg_settings"
+              sequence="99"
+              groups="base.group_system"/>
+
+</odoo>

@@ -29,9 +29,12 @@
         <field name="model">pg.vendor</field>
         <field name="arch" type="xml">
             <kanban default_group_by="state" class="o_kanban_small_column">
+                <field name="name"/>
+                <field name="code"/>
                 <field name="state"/>
                 <field name="vendor_part_count"/>
                 <field name="item_count"/>
+                <field name="qualified_on"/>
                 <templates>
                     <t t-name="card">
                         <div class="o_kanban_record_top">
@@ -143,8 +146,13 @@
                             <field name="qualified_on" readonly="1"/>
                             <field name="qualified_by_id" readonly="1"/>
                             <field name="qualification_expires_on"/>
+                            <field name="responsible_id"/>
                             <field name="active"/>
                         </group>
+                    </group>
+                    <group string="Approved Categories">
+                        <field name="category_ids" nolabel="1" widget="many2many_tags"
+                               options="{'no_create_edit': True}"/>
                     </group>
                     <notebook>
                         <page string="Notes" name="notes">
@@ -177,6 +185,8 @@
                                            decoration-success="decision == 'qualified'"
                                            decoration-warning="decision == 'suspended'"
                                            decoration-danger="decision == 'disqualified'"/>
+                                    <field name="valid_from" optional="hide"/>
+                                    <field name="valid_until" optional="show"/>
                                     <field name="comment"/>
                                 </list>
                             </field>

@@ -8,7 +8,8 @@
             <list create="false" edit="false" delete="false"
                   decoration-info="action == 'state_change'"
                   decoration-success="action == 'release'"
-                  decoration-warning="action == 'field_write_blocked'">
+                  decoration-warning="action == 'field_write_blocked'"
+                  decoration-danger="action == 'force_release'">
                 <field name="create_date" string="When"/>
                 <field name="res_model"/>
                 <field name="res_name"/>
@@ -61,6 +62,7 @@
                 <field name="res_name"/>
                 <field name="user_id"/>
                 <field name="action"/>
+                <filter string="Force Releases" name="filter_force_release" domain="[('action','=','force_release')]"/>
                 <filter string="State Changes" name="f_state" domain="[('action','=','state_change')]"/>
                 <filter string="Releases" name="f_release" domain="[('action','=','release')]"/>
                 <filter string="Blocked Writes" name="f_blocked" domain="[('action','=','field_write_blocked')]"/>

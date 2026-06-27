@@ -22,14 +22,25 @@ class PgRfqLine(models.Model):
     spec_notes = fields.Text(string='Spec Notes')
 
     bid_ids = fields.One2many('pg.rfq.bid', 'line_id', string='Bids')
-    bid_count = fields.Integer(compute='_compute_bid_stats')
+    bid_count = fields.Integer(compute='_compute_bid_stats', store=True)
     best_unit_price = fields.Float(
-        compute='_compute_bid_stats', store=False,
+        compute='_compute_bid_stats', store=True,
         help='Lowest unit_price across all bids on this line.',
     )
     awarded_bid_id = fields.Many2one(
         'pg.rfq.bid', compute='_compute_awarded',
-        store=False,
+        store=True,
+    )
+    # PG-133 — recommendation only. Surfaced in the UI as a "Recommended"
+    # badge; selecting it remains a manual decision (Award).
+    recommended_bid_id = fields.Many2one(
+        'pg.rfq.bid',
+        compute='_compute_recommended',
+        store=True,
+        string='Recommended Bid',
+        help='Lowest-score (best combined unit-price / lead-time / MOQ) bid '
+             'on this line. Suggestion only — the Award action still '
+             'requires a human flag on the chosen bid.',
     )
 
     rfq_state = fields.Selection(
@@ -49,6 +60,20 @@ class PgRfqLine(models.Model):
     def _compute_awarded(self):
         for rec in self:
             rec.awarded_bid_id = rec.bid_ids.filtered('is_awarded')[:1]
+
+    @api.depends('bid_ids.score', 'bid_ids.unit_price')
+    def _compute_recommended(self):
+        for rec in self:
+            if not rec.bid_ids:
+                rec.recommended_bid_id = False
+                continue
+            # Primary sort: score (lower=better). Tiebreaker: unit_price
+            # (lower=better). Python's sort is stable so the tuple does
+            # both passes in one shot.
+            ranked = rec.bid_ids.sorted(
+                lambda b: (b.score, b.unit_price)
+            )
+            rec.recommended_bid_id = ranked[:1]
 
     def unlink(self):
         for rec in self:

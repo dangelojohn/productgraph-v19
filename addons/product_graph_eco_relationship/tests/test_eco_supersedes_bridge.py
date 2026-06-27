@@ -9,6 +9,8 @@ class TestEcoSupersedesBridge(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # Disable SoD by default; tests that exercise SoD opt back in.
+        cls.env['ir.config_parameter'].sudo().set_param('productgraph.enforce_sod', 'False')
         cls.test_user = cls.env.ref('base.user_admin')
         cls.test_user.group_ids |= (
             cls.env.ref('product_graph_base.group_pg_engineer')

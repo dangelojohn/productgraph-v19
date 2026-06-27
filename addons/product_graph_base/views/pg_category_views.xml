@@ -9,7 +9,6 @@
             <list>
                 <field name="complete_name" string="Category"/>
                 <field name="code"/>
-                <field name="item_count" string="# Items"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
         </field>

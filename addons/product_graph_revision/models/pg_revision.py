@@ -35,6 +35,9 @@ REVISION_STATES = [
     ('obsolete', 'Obsolete'),
 ]
 
+# Authoritative copies live on PgRevision.LIFECYCLE_* class attributes;
+# these module-level aliases preserve the legacy attribute path for any
+# sibling code that historically reached for them.
 _REVISION_TRANSITIONS = {
     'draft':      ['review', 'obsolete'],
     'review':     ['released', 'draft'],
@@ -62,9 +65,20 @@ _BYPASS_ONLY_FIELDS = frozenset({
 class PgRevision(models.Model):
     _name = 'pg.revision'
     _description = 'ProductGraph Item Revision'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['pg.lifecycle.mixin', 'mail.thread', 'mail.activity.mixin']
     _order = 'item_id, sequence, id'
     _rec_name = 'display_name'
+
+    # ─── Lifecycle mixin config ──────────────────────────────────────────────
+    LIFECYCLE_STATES = REVISION_STATES
+    LIFECYCLE_TRANSITIONS = _REVISION_TRANSITIONS
+    LIFECYCLE_BYPASS_KEY = '_pg_release_bypass'
+    LIFECYCLE_MUTABLE_LOCKED = _MUTABLE_ON_LOCKED
+    LIFECYCLE_BYPASS_ONLY_FIELDS = _BYPASS_ONLY_FIELDS
+    # released, superseded, and obsolete are all immutable. The empty-transition
+    # auto-inference would only find 'obsolete', so declare explicitly to
+    # match the prior write() guard exactly.
+    LIFECYCLE_TERMINAL_STATES = frozenset({'released', 'superseded', 'obsolete'})
 
     # ─── Identity ────────────────────────────────────────────────────────────
     item_id = fields.Many2one(
@@ -107,6 +121,23 @@ class PgRevision(models.Model):
         tracking=True,
         help='What changed from the previous revision. Minimum 10 characters; '
              'enforced at submission for review.',
+    )
+
+    # ─── Stamped at submit (PG-120 SoD) ──────────────────────────────────────
+    submitted_by_id = fields.Many2one(
+        'res.users',
+        string='Submitted By',
+        readonly=True, copy=False,
+    )
+    submitted_at = fields.Datetime(
+        string='Submitted At',
+        readonly=True, copy=False,
+    )
+    is_self_submitted = fields.Boolean(
+        compute='_compute_is_self_submitted',
+        help='True when the current user is the one who submitted this revision '
+             'for review. Used by view xpaths to read-only author-only fields '
+             'once the record is under review (SoD).',
     )
 
     # ─── Stamped at release ──────────────────────────────────────────────────
@@ -173,6 +204,45 @@ class PgRevision(models.Model):
     )
     document_count = fields.Integer(compute='_compute_document_count', string='# Documents')
 
+    # ─── Lifecycle button gates (PG-105) ─────────────────────────────────────
+    # UI-facing mirrors of _check_submission_requirements / _check_release_requirements.
+    # The server-side checks remain authoritative; these just hide buttons + show
+    # a banner so users see *why* a button isn't actionable before clicking it.
+    can_submit_for_review = fields.Boolean(
+        compute='_compute_lifecycle_buttons',
+        string='Can Submit for Review',
+    )
+    submit_blocked_reason = fields.Char(
+        compute='_compute_lifecycle_buttons',
+        string='Submit Block Reason',
+    )
+    can_release = fields.Boolean(
+        compute='_compute_lifecycle_buttons',
+        string='Can Release',
+    )
+    release_blocked_reason = fields.Char(
+        compute='_compute_lifecycle_buttons',
+        string='Release Block Reason',
+    )
+
+    # ─── PG-140 — One-click Promote + Express Release ────────────────────────
+    can_promote = fields.Boolean(
+        compute='_compute_lifecycle_buttons',
+        string='Can Promote',
+    )
+    promote_blocked_reason = fields.Char(
+        compute='_compute_lifecycle_buttons',
+        string='Promote Block Reason',
+    )
+    can_express_release = fields.Boolean(
+        compute='_compute_lifecycle_buttons',
+        string='Can Express Release',
+    )
+    express_release_blocked_reason = fields.Char(
+        compute='_compute_lifecycle_buttons',
+        string='Express Release Block Reason',
+    )
+
     # ─── Misc ───────────────────────────────────────────────────────────────
     description = fields.Html(string='Description / Notes')
     active = fields.Boolean(default=True)
@@ -201,6 +271,144 @@ class PgRevision(models.Model):
         for rec in self:
             rec.document_count = len(rec.document_ids)
 
+    @api.depends(
+        'state', 'item_id', 'item_id.state', 'item_id.active', 'item_id.company_id',
+        'change_summary', 'incompatible_with_previous', 'incompatibility_reason',
+    )
+    def _compute_lifecycle_buttons(self):
+        """Mirrors _check_submission_requirements / _check_release_requirements.
+
+        The server-side gates remain authoritative — this compute only powers
+        UI visibility (button invisible + reason banner). Keep the two in sync;
+        the test suite asserts parity.
+        """
+        for rec in self:
+            # Guard for NewId / un-saved records with no item picked yet.
+            if not rec.item_id:
+                rec.can_submit_for_review = False
+                rec.submit_blocked_reason = _("Pick a parent item first.")
+                rec.can_release = False
+                rec.release_blocked_reason = _("Pick a parent item first.")
+                rec.can_promote = False
+                rec.promote_blocked_reason = _("Pick a parent item first.")
+                rec.can_express_release = False
+                rec.express_release_blocked_reason = _("Pick a parent item first.")
+                continue
+
+            # ── Submit-for-review preconditions ─────────────────────────────
+            if rec.state != 'draft':
+                rec.can_submit_for_review = False
+                rec.submit_blocked_reason = _("Revision is not in draft state.")
+            elif not rec.item_id.active:
+                rec.can_submit_for_review = False
+                rec.submit_blocked_reason = _("Parent item is archived.")
+            elif rec.item_id.state == 'concept':
+                rec.can_submit_for_review = False
+                rec.submit_blocked_reason = _(
+                    "Parent item is still in Concept — promote to Prototype or "
+                    "Engineering before submitting."
+                )
+            elif not rec.change_summary or len(rec.change_summary.strip()) < 10:
+                rec.can_submit_for_review = False
+                rec.submit_blocked_reason = _(
+                    "Change Summary must be at least 10 characters."
+                )
+            else:
+                rec.can_submit_for_review = True
+                rec.submit_blocked_reason = False
+
+            # ── Release preconditions ───────────────────────────────────────
+            if rec.state != 'review':
+                rec.can_release = False
+                rec.release_blocked_reason = _(
+                    "Revision must be Under Review before release."
+                )
+            elif rec.item_id.state not in ('engineering', 'released'):
+                rec.can_release = False
+                state_label = dict(rec.item_id._fields['state'].selection).get(
+                    rec.item_id.state, rec.item_id.state,
+                )
+                rec.release_blocked_reason = _(
+                    "Parent item must be In Engineering or Released — current "
+                    "state: %s."
+                ) % state_label
+            elif rec.incompatible_with_previous and not rec.incompatibility_reason:
+                rec.can_release = False
+                rec.release_blocked_reason = _(
+                    "Incompatibility reason is required when the revision is "
+                    "flagged incompatible."
+                )
+            else:
+                # Required-property check mirrors _check_release_requirements.
+                missing = []
+                for tmpl in rec.item_id.property_template_ids:
+                    for field in tmpl.field_ids.filtered(lambda f: f.is_required):
+                        value = rec.property_value_ids.filtered(
+                            lambda v: v.field_id == field
+                        )
+                        if not value or not value.display_value:
+                            missing.append(f'{tmpl.name}.{field.label}')
+                if missing:
+                    rec.can_release = False
+                    rec.release_blocked_reason = _(
+                        "Missing required property values: %s"
+                    ) % ', '.join(missing)
+                else:
+                    rec.can_release = True
+                    rec.release_blocked_reason = False
+
+            # ── Promote (PG-140) — reuses existing transition preconditions ─
+            if rec.state == 'draft':
+                rec.can_promote = rec.can_submit_for_review
+                rec.promote_blocked_reason = rec.submit_blocked_reason or False
+            elif rec.state == 'review':
+                rec.can_promote = rec.can_release
+                rec.promote_blocked_reason = rec.release_blocked_reason or False
+            elif rec.state == 'superseded':
+                rec.can_promote = True
+                rec.promote_blocked_reason = False
+            else:
+                rec.can_promote = False
+                rec.promote_blocked_reason = (
+                    _("Revision is in final state.")
+                    if rec.state == 'obsolete'
+                    else _("Promotion not defined for this state.")
+                )
+
+            # ── Express Release (PG-140) — draft-only, respects SoD ─────────
+            if rec.state != 'draft':
+                rec.can_express_release = False
+                rec.express_release_blocked_reason = _(
+                    "Only available on Draft revisions."
+                )
+            elif not rec.can_submit_for_review:
+                rec.can_express_release = False
+                rec.express_release_blocked_reason = rec.submit_blocked_reason
+            else:
+                ICP = self.env['ir.config_parameter'].sudo()
+                sod_enforced = str(ICP.get_param(
+                    'productgraph.enforce_sod', 'True',
+                )) == 'True'
+                is_admin = self.env.user.has_group(
+                    'product_graph_base.group_pg_admin',
+                )
+                if sod_enforced and not is_admin:
+                    rec.can_express_release = False
+                    rec.express_release_blocked_reason = _(
+                        "SoD enforced — submitter and releaser must differ."
+                    )
+                else:
+                    rec.can_express_release = True
+                    rec.express_release_blocked_reason = False
+
+    @api.depends('submitted_by_id')
+    def _compute_is_self_submitted(self):
+        uid = self.env.user.id
+        for rec in self:
+            rec.is_self_submitted = bool(
+                rec.submitted_by_id and rec.submitted_by_id.id == uid
+            )
+
     @staticmethod
     def _group_expand_states(states, domain, order):
         return [s[0] for s in REVISION_STATES]
@@ -209,32 +417,8 @@ class PgRevision(models.Model):
     # ORM overrides
     # ═════════════════════════════════════════════════════════════════════════
 
-    def write(self, vals):
-        bypass = self.env.context.get('_pg_release_bypass')
-        for rec in self:
-            if rec.state in ('released', 'superseded', 'obsolete') and not bypass:
-                allowed = _MUTABLE_ON_LOCKED
-                blocked = set(vals.keys()) - allowed
-                if blocked:
-                    raise UserError(_(
-                        "Revision %(name)s is %(state)s and immutable.\n"
-                        "Blocked fields: %(fields)s.\n"
-                        "Create a new revision to propose changes.",
-                        name=rec.display_name,
-                        state=rec.state,
-                        fields=', '.join(sorted(blocked)),
-                    ))
-            # Bypass-only fields require the bypass even on draft/review revisions.
-            if not bypass:
-                bypass_attempt = set(vals.keys()) & _BYPASS_ONLY_FIELDS
-                if bypass_attempt:
-                    raise UserError(_(
-                        "Fields %(fields)s on revision %(name)s can only be "
-                        "written by the release flow (pg.release.action_execute_release).",
-                        fields=', '.join(sorted(bypass_attempt)),
-                        name=rec.display_name,
-                    ))
-        return super().write(vals)
+    # write() — immutability enforcement (allowlist on locked states +
+    # bypass-only field guard) provided by pg.lifecycle.mixin.
 
     def unlink(self):
         for rec in self:
@@ -248,36 +432,38 @@ class PgRevision(models.Model):
                 ))
         return super().unlink()
 
-    # ═════════════════════════════════════════════════════════════════════════
-    # Transition helpers
-    # ═════════════════════════════════════════════════════════════════════════
-
-    def _check_transition_allowed(self, target_state):
-        self.ensure_one()
-        allowed = _REVISION_TRANSITIONS.get(self.state, [])
-        if target_state not in allowed:
-            raise UserError(_(
-                "Cannot move revision %(name)s from '%(from)s' to '%(to)s'.\n"
-                "Allowed: %(allowed)s",
-                name=self.display_name,
-                **{'from': self.state},
-                to=target_state,
-                allowed=', '.join(allowed) or _('none — terminal state'),
-            ))
-
-    def _log_state_change(self, from_state, to_state, notes=None, triggered_by=None):
-        self.env['pg.audit.log']._log(
-            self,
-            action='state_change',
-            from_state=from_state,
-            to_state=to_state,
-            notes=notes,
-            triggered_by=triggered_by,
-        )
+    # _check_transition_allowed / _log_state_change — provided by pg.lifecycle.mixin.
 
     # ═════════════════════════════════════════════════════════════════════════
     # Action buttons
     # ═════════════════════════════════════════════════════════════════════════
+
+    # ─── PG-120 Segregation of Duties ────────────────────────────────────────
+    def _check_sod(self, action_label):
+        """Block actor == submitter for governed transitions.
+
+        Bypass via ICP ``productgraph.enforce_sod=False`` (default True).
+        Called from action_release on pg.revision; ECO has its own variant
+        that also blocks the original requestor.
+        """
+        # PG-140 — coordinated bypass for action_express_release. That action
+        # gates SoD itself (admin-only when SoD is enforced) and consciously
+        # submits + releases as the same user, so the standard SoD raise here
+        # would block the path it just authorised.
+        if self.env.context.get('_pg_express_release'):
+            return
+        ICP = self.env['ir.config_parameter'].sudo()
+        if str(ICP.get_param('productgraph.enforce_sod', 'True')) != 'True':
+            return
+        uid = self.env.user.id
+        for rec in self:
+            if rec.submitted_by_id and rec.submitted_by_id.id == uid:
+                raise UserError(_(
+                    "You submitted revision %(name)s yourself — a different "
+                    "user must %(action)s it (Segregation of Duties).",
+                    name=rec.display_name,
+                    action=action_label,
+                ))
 
     def action_submit_for_review(self):
         if not self.env.user.has_group('product_graph_base.group_pg_engineer'):
@@ -286,7 +472,11 @@ class PgRevision(models.Model):
             rec._check_transition_allowed('review')
             rec._check_submission_requirements()
             old = rec.state
-            rec.write({'state': 'review'})
+            rec.write({
+                'state': 'review',
+                'submitted_by_id': self.env.user.id,
+                'submitted_at': fields.Datetime.now(),
+            })
             rec._log_state_change(old, 'review')
             rec.message_post(
                 body=_("Revision submitted for review by %s.") % self.env.user.name,
@@ -300,6 +490,8 @@ class PgRevision(models.Model):
         auto-releases the parent item if it's still in engineering."""
         if not self.env.user.has_group('product_graph_base.group_pg_approver'):
             raise UserError(_("Only Approvers may release revisions."))
+        # SoD: gate before any state change so the audit trail stays clean.
+        self._check_sod(_("release"))
         for rec in self:
             rec._check_transition_allowed('released')
             rec._check_release_requirements()
@@ -320,7 +512,133 @@ class PgRevision(models.Model):
             # Auto-promote parent item if it was still in engineering
             rec.item_id._auto_release_from_revision(rec)
             rec._notify_manufacturing()
+            # PG-103 cascade: warn (do NOT auto-release) about draft EBOMs
+            # still pointing at this revision. Governance principle: never
+            # release MRP-impacting artifacts without explicit user intent.
+            rec._warn_draft_child_eboms()
+            # PG-130 — propagate release event to any linked ECO line.
+            rec._propagate_release_to_eco()
         return True
+
+    def _warn_draft_child_eboms(self):
+        """Post a chatter warning if draft EBOMs reference this revision.
+        Uses self.env['pg.ebom'] without a Python import to avoid creating a
+        cross-module import cycle (product_graph_ebom depends on us)."""
+        self.ensure_one()
+        EbomModel = self.env.get('pg.ebom')
+        if EbomModel is None:
+            return  # product_graph_ebom not installed; nothing to cascade.
+        draft_eboms = EbomModel.search([
+            ('revision_id', '=', self.id),
+            ('state', '=', 'draft'),
+        ])
+        if draft_eboms:
+            names = ', '.join(draft_eboms.mapped('display_name'))
+            self.message_post(body=_(
+                "Revision released. Draft EBOM(s) remain: %s. "
+                "Release them via the EBOM action to materialize the MRP BOM."
+            ) % names)
+
+    def _propagate_release_to_eco(self):
+        """PG-130 — Notify ECO(s) that one of their target revisions has
+        reached `released`. Triggers the auto-close check on each linked
+        ECO.
+
+        Defensive: `pg.eco.line` may not be installed (product_graph_eco is
+        an optional sibling). sudo() because the user releasing the
+        revision may not have direct read on every ECO that references it
+        — this is a system-side cascade, not a user query.
+        """
+        if 'pg.eco.line' not in self.env:
+            return
+        EcoLine = self.env['pg.eco.line'].sudo()
+        for rec in self:
+            eco_lines = EcoLine.search([('to_revision_id', '=', rec.id)])
+            if not eco_lines:
+                continue
+            ecos = eco_lines.mapped('eco_id')
+            ecos._check_close_on_all_released()
+
+    # ─── PG-140 — One-click Promote + Express Release ───────────────────────
+    def action_promote(self):
+        """One-click advance to the next valid revision state. Reuses existing
+        transitions + guards."""
+        self.ensure_one()
+        PROMOTION_MAP = {
+            'draft': 'action_submit_for_review',
+            'review': 'action_release',
+            'released': None,  # supersede is intentional, not a promotion
+            'superseded': 'action_obsolete',
+            'obsolete': None,
+        }
+        target_method = PROMOTION_MAP.get(self.state)
+        if target_method is None:
+            raise UserError(_(
+                "Revision %s cannot be promoted from %s. "
+                "(Supersession is explicit, not a promotion; Obsolete is final.)"
+            ) % (
+                self.display_name,
+                dict(self._fields['state'].selection).get(self.state),
+            ))
+        return getattr(self, target_method)()
+
+    def action_express_release(self):
+        """Submit-for-Review + Release in one click. Respects SoD unless
+        ICP override or admin role allows the bypass."""
+        self.ensure_one()
+        if self.state != 'draft':
+            raise UserError(_(
+                "Express Release only applies to Draft revisions. "
+                "This revision is in %s."
+            ) % self.state)
+        ICP = self.env['ir.config_parameter'].sudo()
+        sod_enforced = str(ICP.get_param('productgraph.enforce_sod', 'True')) == 'True'
+        if sod_enforced and not self.env.user.has_group(
+            'product_graph_base.group_pg_admin',
+        ):
+            raise UserError(_(
+                "Express Release would have you submit AND release the same "
+                "revision, which violates Segregation of Duties. Either "
+                "disable SoD in system parameters (productgraph.enforce_sod="
+                "False), or use the standard Submit + a separate Approver to "
+                "Release. Admin users may bypass this gate."
+            ))
+        # Submit (stamps submitted_by_id to current user).
+        self.action_submit_for_review()
+        # Release — must dodge the SoD check because we just submitted as
+        # this user. The context flag is the coordinated bypass that
+        # _check_sod honors; gating already enforced above.
+        self.with_context(_pg_express_release=True).action_release()
+        self.message_post(body=_("Express-released by %s.") % self.env.user.name)
+        return True
+
+    # ─── PG-131 — Revision naming helper ────────────────────────────────────
+    @api.model
+    def _next_revision_name_after(self, prior_name):
+        """Compute the next revision name given a predecessor.
+
+        Rules:
+          - None / empty           -> 'A'
+          - Numeric string         -> increment ('1' -> '2', '10' -> '11')
+          - Single letter A-Y      -> next letter ('A' -> 'B', 'F' -> 'G')
+          - Single letter 'Z'      -> 'AA' (rollover)
+          - Single letter 'AA'..   -> '<prior>+1' (deferred; caller can
+                                      override with a stricter scheme)
+
+        Defer to project-specific naming policy if one exists. This is the
+        safe default used by `pg.eco.line.action_spawn_revision`.
+        """
+        if not prior_name:
+            return 'A'
+        name = prior_name.strip()
+        if name.isdigit():
+            return str(int(name) + 1)
+        if len(name) == 1 and name.isalpha():
+            up = name.upper()
+            if up == 'Z':
+                return 'AA'
+            return chr(ord(up) + 1)
+        return f'{name}+1'
 
     def action_reject_to_draft(self):
         """Approver rejects from review back to draft. Reason required."""
@@ -474,6 +792,17 @@ class PgRevision(models.Model):
 
     def action_view_documents(self):
         self.ensure_one()
+        documents = self.env['pg.document'].search([('revision_id', '=', self.id)])
+        # PG-160: single-document shortcut to the form view.
+        if len(documents) == 1:
+            return {
+                'type': 'ir.actions.act_window',
+                'name': documents.display_name,
+                'res_model': 'pg.document',
+                'res_id': documents.id,
+                'view_mode': 'form',
+                'target': 'current',
+            }
         return {
             'type': 'ir.actions.act_window',
             'name': _('Documents for %s') % self.display_name,
@@ -481,4 +810,20 @@ class PgRevision(models.Model):
             'view_mode': 'list,form',
             'domain': [('revision_id', '=', self.id)],
             'context': {'default_revision_id': self.id},
+        }
+
+    # PG-144 — Open the Apply Template wizard scoped to this revision so
+    # empty property value rows are created on the revision in one shot.
+    def action_open_apply_template_wizard(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Apply Template — %s') % self.display_name,
+            'res_model': 'pg.apply.template.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_item_id': self.item_id.id,
+                'default_revision_id': self.id,
+            },
         }

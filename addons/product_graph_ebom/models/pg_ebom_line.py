@@ -35,12 +35,17 @@ class PgEbomLine(models.Model):
     sequence = fields.Integer(default=10, index=True)
 
     # The child item
+    # Defense-in-depth: exclude the parent EBOM's root item from the picker
+    # so the UI cannot offer a direct self-ref. The real gate is the
+    # @api.constrains + action_validate() checks on pg.ebom (PG-101) — the
+    # domain can be bypassed by RPC or CSV import.
     pg_item_id = fields.Many2one(
         'pg.item',
         string='Component',
         required=True,
         index=True,
         ondelete='restrict',
+        domain="[('id','!=',parent.root_item_id)]",
         help='The child engineering item used in this BOM.',
     )
     pg_revision_id = fields.Many2one(

@@ -5,10 +5,19 @@ ProductGraph REST API v1
 
 JSON controllers under ``/api/v1/productgraph/``. Follows the API Bible.
 
-Auth — every endpoint except ``/health`` requires an authenticated Odoo user.
-The MCP sidecar / CAD connectors authenticate using a personal API key passed
-as ``Authorization: Bearer <key>`` (Odoo standard). Group checks are
-re-validated at each mutating endpoint.
+Auth — every endpoint except ``/health`` uses ``auth='bearer'`` (Odoo's
+personal-API-key flow). Clients send ``Authorization: Bearer <key>``;
+Odoo's ``ir.http._auth_method_bearer`` validates the key against
+``res.users.apikeys`` and binds ``request.env.user`` to the key's owner.
+Group checks are re-validated at each mutating endpoint.
+
+Breaking change (19.0.1.2.0): auth changed from ``'user'`` (session-cookie)
+to ``'bearer'`` (Authorization header) per CLAUDE.md R6. The MCP sidecar
+and any external clients must now send the bearer header. Browser-form
+clients (if any) need to switch to API keys; the legacy session-cookie
+path no longer authorises these routes (browsers may still pass via
+``auth='bearer'`` when Sec-Fetch navigation headers indicate same-origin
+navigation, per Odoo's bearer dual-mode contract).
 
 Output conventions
 ------------------
@@ -224,7 +233,7 @@ class ProductGraphAPI(http.Controller):
     # Items
     # ════════════════════════════════════════════════════════════════════════
 
-    @http.route(f'{PG_BASE}/items', auth='user', methods=['GET'], csrf=False)
+    @http.route(f'{PG_BASE}/items', auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def list_items(self, **kwargs):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -251,7 +260,7 @@ class ProductGraphAPI(http.Controller):
             'items': [_item_dict(i) for i in items],
         })
 
-    @http.route(f'{PG_BASE}/items/<int:item_id>', auth='user', methods=['GET'], csrf=False)
+    @http.route(f'{PG_BASE}/items/<int:item_id>', auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def get_item(self, item_id, **kwargs):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -263,7 +272,7 @@ class ProductGraphAPI(http.Controller):
         return _json(_item_dict(item, detail=True))
 
     @http.route(f'{PG_BASE}/items/<int:item_id>/where-used',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def item_where_used(self, item_id, **kwargs):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -291,23 +300,22 @@ class ProductGraphAPI(http.Controller):
             ],
         })
 
-    @http.route(f'{PG_BASE}/items', auth='user', methods=['POST'], csrf=False, type='json')
+    @http.route(f'{PG_BASE}/items', auth='bearer', methods=['POST'], csrf=False, type='json')
     @_safe
     def create_item(self, **kwargs):
         err = _check_group('product_graph_base.group_pg_engineer')
         if err:
             return err
-        body = request.get_json_data() if hasattr(request, 'get_json_data') else (
-            request.dispatcher.jsonrequest if hasattr(request, 'dispatcher') else {}
-        )
-        # Fallback for various Odoo 19 conventions:
-        if not body and request.httprequest.data:
-            body = json.loads(request.httprequest.data)
+        # type='json' unwraps JSON-RPC params into kwargs. Validate required.
+        missing = [k for k in ('name', 'category_id') if k not in kwargs]
+        if missing:
+            return _err('bad_request',
+                       f'Missing required fields: {", ".join(missing)}', 400)
         item = request.env['pg.item'].create({
-            'name': body['name'],
-            'item_type': body.get('item_type', 'part'),
-            'category_id': body['category_id'],
-            'description': body.get('description'),
+            'name': kwargs['name'],
+            'item_type': kwargs.get('item_type', 'part'),
+            'category_id': kwargs['category_id'],
+            'description': kwargs.get('description'),
         })
         return _item_dict(item, detail=True)
 
@@ -315,7 +323,7 @@ class ProductGraphAPI(http.Controller):
     # Revisions
     # ════════════════════════════════════════════════════════════════════════
 
-    @http.route(f'{PG_BASE}/revisions', auth='user', methods=['GET'], csrf=False)
+    @http.route(f'{PG_BASE}/revisions', auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def list_revisions(self, **kwargs):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -337,7 +345,7 @@ class ProductGraphAPI(http.Controller):
         })
 
     @http.route(f'{PG_BASE}/revisions/<int:rev_id>',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def get_revision(self, rev_id, **kwargs):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -349,7 +357,7 @@ class ProductGraphAPI(http.Controller):
         return _json(_revision_dict(rev, detail=True))
 
     @http.route(f'{PG_BASE}/revisions/<int:rev_id>/submit',
-                auth='user', methods=['POST'], csrf=False, type='json')
+                auth='bearer', methods=['POST'], csrf=False, type='json')
     @_safe
     def submit_revision(self, rev_id, **kwargs):
         err = _check_group('product_graph_base.group_pg_engineer')
@@ -362,7 +370,7 @@ class ProductGraphAPI(http.Controller):
         return _revision_dict(rev, detail=True)
 
     @http.route(f'{PG_BASE}/revisions/<int:rev_id>/release',
-                auth='user', methods=['POST'], csrf=False, type='json')
+                auth='bearer', methods=['POST'], csrf=False, type='json')
     @_safe
     def release_revision(self, rev_id, **kwargs):
         err = _check_group('product_graph_base.group_pg_approver')
@@ -378,7 +386,7 @@ class ProductGraphAPI(http.Controller):
     # EBOMs
     # ════════════════════════════════════════════════════════════════════════
 
-    @http.route(f'{PG_BASE}/eboms', auth='user', methods=['GET'], csrf=False)
+    @http.route(f'{PG_BASE}/eboms', auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def list_eboms(self, **kwargs):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -400,7 +408,7 @@ class ProductGraphAPI(http.Controller):
         })
 
     @http.route(f'{PG_BASE}/eboms/<int:ebom_id>',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def get_ebom(self, ebom_id, **kwargs):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -412,7 +420,7 @@ class ProductGraphAPI(http.Controller):
         return _json(_ebom_dict(ebom, detail=True, with_lines=True))
 
     @http.route(f'{PG_BASE}/eboms/<int:ebom_id>/explosion',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def ebom_explosion(self, ebom_id, **kwargs):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -445,7 +453,7 @@ class ProductGraphAPI(http.Controller):
     # Releases
     # ════════════════════════════════════════════════════════════════════════
 
-    @http.route(f'{PG_BASE}/releases', auth='user', methods=['GET'], csrf=False)
+    @http.route(f'{PG_BASE}/releases', auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def list_releases(self, **kwargs):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -467,7 +475,7 @@ class ProductGraphAPI(http.Controller):
         })
 
     @http.route(f'{PG_BASE}/releases/<int:release_id>',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def get_release(self, release_id, **kwargs):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -479,7 +487,7 @@ class ProductGraphAPI(http.Controller):
         return _json(_release_dict(rel, detail=True))
 
     @http.route(f'{PG_BASE}/releases/<int:release_id>/status',
-                auth='user', methods=['GET'], csrf=False)
+                auth='bearer', methods=['GET'], csrf=False)
     @_safe
     def release_status(self, release_id, **kwargs):
         err = _check_group('product_graph_base.group_pg_viewer')
@@ -497,7 +505,7 @@ class ProductGraphAPI(http.Controller):
             'failure_reason': rel.failure_reason,
         })
 
-    @http.route(f'{PG_BASE}/releases', auth='user', methods=['POST'],
+    @http.route(f'{PG_BASE}/releases', auth='bearer', methods=['POST'],
                 csrf=False, type='json')
     @_safe
     def create_release(self, **kwargs):

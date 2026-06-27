@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – CAD Connector Framework',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.2.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Pluggable CAD connector framework with a JSON-file '
                'reference driver — real PDM drivers slot in behind the '
@@ -93,6 +93,7 @@ Compatible with Odoo 19.0 Community Edition.
     ],
     'data': [
         'security/ir.model.access.csv',
+        'data/pg_cad_cron.xml',
         'views/pg_cad_connector_views.xml',
         'views/pg_cad_import_views.xml',
         'views/pg_cad_menus.xml',

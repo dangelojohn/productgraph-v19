@@ -44,6 +44,8 @@
                             <field name="created_count" readonly="1"/>
                             <field name="updated_count" readonly="1"/>
                             <field name="skipped_count" readonly="1"/>
+                            <field name="rejected_count" readonly="1"/>
+                            <field name="error_count" readonly="1"/>
                         </group>
                     </group>
                     <notebook>
@@ -55,9 +57,11 @@
                                            decoration-success="action == 'created'"
                                            decoration-info="action == 'updated'"
                                            decoration-muted="action == 'skipped'"
+                                           decoration-warning="action == 'rejected'"
                                            decoration-danger="action == 'error'"/>
                                     <field name="item_id"/>
                                     <field name="message"/>
+                                    <field name="reason" optional="show"/>
                                 </list>
                             </field>
                         </page>

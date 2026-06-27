@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pg_eco_impact_wizard_form" model="ir.ui.view">
+        <field name="name">pg.eco.impact.wizard.form</field>
+        <field name="model">pg.eco.impact.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Impact Analysis">
+                <div class="alert alert-info" role="alert">
+                    Select which downstream assemblies should be added to this ECO as additional affected items.
+                </div>
+                <group>
+                    <field name="source_item_id" readonly="1"/>
+                    <field name="candidate_item_ids" widget="many2many_tags" readonly="1"/>
+                    <field name="default_change_kind"/>
+                    <field name="selected_item_ids" widget="many2many_tags"
+                           domain="[('id', 'in', candidate_item_ids)]"
+                           placeholder="Choose items to add..."/>
+                </group>
+                <footer>
+                    <button string="Add Selected" name="action_add_to_eco" type="object"
+                            class="btn-primary"
+                            invisible="not selected_item_ids"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

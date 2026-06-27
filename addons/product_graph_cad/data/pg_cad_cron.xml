@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="0">
+    <record id="ir_cron_cad_scheduled_syncs" model="ir.cron">
+        <field name="name">ProductGraph: Run scheduled CAD connector syncs</field>
+        <field name="model_id" ref="model_pg_cad_connector"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_run_scheduled_syncs()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

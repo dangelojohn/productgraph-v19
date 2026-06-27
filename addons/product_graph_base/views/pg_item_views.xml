@@ -20,7 +20,6 @@
                        decoration-muted="state == 'obsolete'"
                        decoration-warning="state == 'service'"/>
                 <field name="responsible_id"/>
-                <field name="revision_count" string="# Rev"/>
                 <field name="tag_ids" widget="many2many_tags" optional="hide"/>
             </list>
         </field>
@@ -34,6 +33,7 @@
             <kanban default_group_by="state" class="o_kanban_small_column">
                 <field name="part_number"/>
                 <field name="name"/>
+                <field name="category_id"/>
                 <field name="state"/>
                 <field name="item_type"/>
                 <field name="responsible_id"/>
@@ -68,6 +68,10 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_promote" string="Promote &#8594;"
+                            type="object" class="btn-primary"
+                            invisible="not can_promote"
+                            help="Advance to next valid state. Reuses normal gating."/>
                     <button name="action_to_prototype" string="To Prototype"
                             type="object" class="oe_highlight"
                             invisible="state != 'concept'"
@@ -77,16 +81,16 @@
                             invisible="state not in ('concept','prototype')"
                             groups="product_graph_base.group_pg_engineer"/>
                     <button name="action_force_release" string="Force Release"
-                            type="object" confirm="Manually release this item without a linked revision?"
-                            invisible="state != 'engineering'"
+                            type="object" class="btn-danger"
+                            invisible="state in ('released','service','obsolete')"
                             groups="product_graph_base.group_pg_approver"/>
                     <button name="action_to_service" string="Move to Service"
                             type="object" confirm="Move this item to Service? No new-production MOs may be created."
-                            invisible="state != 'released'"
+                            invisible="state != 'released' or not can_to_service"
                             groups="product_graph_base.group_pg_approver"/>
                     <button name="action_to_obsolete" string="Obsolete"
                             type="object" confirm="Obsolete this item permanently? This cannot be undone."
-                            invisible="state not in ('released','service')"
+                            invisible="state not in ('released','service') or not can_to_obsolete"
                             groups="product_graph_base.group_pg_admin"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="concept,prototype,engineering,released,service"/>
@@ -113,10 +117,14 @@
                         </button>
                     </div>
                     <field name="image_1920" widget="image" class="oe_avatar"/>
+                    <!-- PG-141: Title region previously rendered the name TWICE
+                         (once inside display_name's h1, once again in an h3
+                         editor below). Both went red on validation. Keep ONE
+                         editable instance: name as the title. part_number is
+                         shown in the group below as the auto-sequenced ID. -->
                     <div class="oe_title">
                         <label for="name" class="oe_edit_only"/>
-                        <h1><field name="display_name" readonly="1"/></h1>
-                        <h3><field name="name" placeholder="Item Name" required="1"/></h3>
+                        <h1><field name="name" placeholder="Item Name" required="1"/></h1>
                     </div>
                     <group>
                         <group>
@@ -139,11 +147,38 @@
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                     </group>
+                    <!-- PG-105: helper booleans drive lifecycle button visibility -->
+                    <field name="can_to_service" invisible="1"/>
+                    <field name="can_to_obsolete" invisible="1"/>
+                    <field name="can_promote" invisible="1"/>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="state != 'released' or can_to_service">
+                        <i class="fa fa-info-circle"/>
+                        <field name="to_service_blocked_reason" nolabel="1" readonly="1"/>
+                    </div>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="state not in ('released','service') or can_to_obsolete">
+                        <i class="fa fa-info-circle"/>
+                        <field name="to_obsolete_blocked_reason" nolabel="1" readonly="1"/>
+                    </div>
+                    <!-- PG-140: promote-blocked banner; shown for non-final states only -->
+                    <div class="alert alert-info" role="alert"
+                         invisible="can_promote or state == 'obsolete'">
+                        <i class="fa fa-info-circle"/>
+                        <field name="promote_blocked_reason" nolabel="1" readonly="1"/>
+                    </div>
                     <notebook>
                         <page string="Description" name="page_description">
                             <field name="description" placeholder="Engineering description…"/>
                         </page>
                         <page string="Properties" name="page_properties">
+                            <div class="o_row mb-2">
+                                <button name="action_open_apply_template_wizard"
+                                        type="object"
+                                        string="Apply Template"
+                                        class="btn btn-secondary"
+                                        icon="fa-plus-square"/>
+                            </div>
                             <field name="property_template_ids" widget="many2many_tags"
                                    options="{'no_create': True}"/>
                             <p class="text-muted">

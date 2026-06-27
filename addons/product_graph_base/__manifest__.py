@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Base',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.8.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Engineering item catalog, property templates, and security foundation for ProductGraph',
     'description': """
@@ -52,7 +52,9 @@ Compatible with Odoo 19.0 Community Edition.
         # Sequences + static data
         'data/pg_sequence.xml',
         'data/pg_category_data.xml',
+        'data/pg_category_cabinetry_seed.xml',
         'data/property_templates_seed.xml',
+        'data/pg_sod_config.xml',
 
         # Views (one model per file)
         'views/pg_category_views.xml',
@@ -62,6 +64,11 @@ Compatible with Odoo 19.0 Community Edition.
         'views/pg_asset_views.xml',
         'views/pg_audit_log_views.xml',
         'views/menus.xml',
+        'views/res_config_settings_views.xml',
+
+        # Wizards
+        'wizard/views/force_release_wizard_view.xml',
+        # apply_template_wizard moved to product_graph_revision (needs pg.revision)
     ],
     'demo': [
         'demo/pg_base_demo.xml',

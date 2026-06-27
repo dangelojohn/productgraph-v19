@@ -17,8 +17,8 @@
                 <field name="pg_ebom_id" readonly="1"
                        invisible="not pg_ebom_id"
                        groups="product_graph_base.group_pg_viewer"/>
-                <field name="pg_item_id" readonly="1"
-                       invisible="not pg_item_id"
+                <field name="pg_root_item_id" readonly="1"
+                       invisible="not pg_root_item_id"
                        groups="base.group_no_one"/>
             </xpath>
         </field>

@@ -20,6 +20,18 @@ class TestPgEcoStateMachine(TransactionCase):
         )
         cls.env = cls.env(user=cls.test_user)
         cls.cat = cls.env.ref('product_graph_base.cat_mechanical')
+        # PG-120 SoD off — this test pre-dates the guard and walks the full
+        # state machine as a single user. Dedicated SoD coverage lives in
+        # test_sod.py.
+        cls.env['ir.config_parameter'].sudo().set_param(
+            'productgraph.enforce_sod', 'False',
+        )
+        # PG-130 auto-close also off — this test exercises explicit ECO
+        # transitions; auto-close cascading from revision release would
+        # release the ECO before the test reaches the manual action_release.
+        cls.env['ir.config_parameter'].sudo().set_param(
+            'productgraph.auto_close_eco_on_all_revisions_released', 'False',
+        )
 
     def _make_item(self):
         item = self.env['pg.item'].create({

@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- PG-142: Shortened "Change Orders" -> "ECOs" to relieve top-bar
+         overflow pressure (CAD + Configuration were being hidden). -->
     <menuitem id="menu_pg_eco_root"
-              name="Change Orders"
+              name="ECOs"
               parent="product_graph_base.menu_pg_root"
               sequence="30"/>
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – RFQ Workflow',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.2.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Engineering-driven Request-for-Quote workflow that feeds AVL '
                'pricing from real vendor bids',
@@ -74,6 +74,7 @@ Compatible with Odoo 19.0 Community Edition.
     'data': [
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',
+        'data/pg_rfq_cron.xml',
         'views/pg_rfq_views.xml',
         'views/pg_rfq_line_views.xml',
         'views/pg_rfq_bid_views.xml',

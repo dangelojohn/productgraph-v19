@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
+import logging
+
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
+
+_logger = logging.getLogger(__name__)
+
+# Days before a vendor qualification's valid_until that we start nagging.
+QUALIFICATION_EXPIRY_WINDOW_DAYS = 30
 
 VENDOR_STATES = [
     ('unqualified', 'Unqualified'),
@@ -61,10 +68,30 @@ class PgVendor(models.Model):
     vendor_part_ids = fields.One2many(
         'pg.vendor.part', 'vendor_id', string='Cross-References',
     )
-    vendor_part_count = fields.Integer(compute='_compute_counts')
+    vendor_part_count = fields.Integer(compute='_compute_counts', store=True)
     item_count = fields.Integer(
         compute='_compute_counts',
+        store=True,
         help='Distinct pg.items this vendor supplies.',
+    )
+
+    # Engineering categories this vendor is approved to supply. Used by the
+    # RFQ auto-draft cron to pick candidate vendors for an unsourced item.
+    category_ids = fields.Many2many(
+        'pg.category',
+        'pg_vendor_category_rel',
+        'vendor_id', 'category_id',
+        string='Approved Categories',
+        help='Engineering categories this vendor is qualified to bid on. '
+             'The auto-RFQ cron seeds bids for vendors whose categories '
+             "match the requesting item's category.",
+    )
+
+    responsible_id = fields.Many2one(
+        'res.users',
+        string='Responsible Buyer',
+        help='Buyer responsible for this vendor relationship. Activities '
+             'raised by the qualification-expiry cron are assigned here.',
     )
 
     # ──────────────────────────────────────────────────────────────────
@@ -174,3 +201,105 @@ class PgVendor(models.Model):
             'domain': [('vendor_id', '=', self.id)],
             'context': {'default_vendor_id': self.id},
         }
+
+    # ──────────────────────────────────────────────────────────────────
+    # Expiring-qualification cron (PG-133 task 4)
+    # ──────────────────────────────────────────────────────────────────
+    @api.model
+    def _cron_flag_expiring_qualifications(self):
+        """Daily sweep — nag on qualifications expiring within the window.
+
+        For every ``pg.vendor.qualification`` with ``valid_until`` inside
+        the warning window, posts a chatter message on the vendor and raises
+        a ``mail.activity`` for the responsible buyer (falling back to the
+        ``group_pg_approver`` users when no buyer is assigned). Idempotent
+        per (qualification, valid_until) — an existing open activity for the
+        same record + summary suppresses re-creation so daily reruns don't
+        spam.
+        """
+        today = fields.Date.context_today(self)
+        horizon = fields.Date.add(today, days=QUALIFICATION_EXPIRY_WINDOW_DAYS)
+        Qualification = self.env['pg.vendor.qualification']
+        expiring = Qualification.search([
+            ('valid_until', '!=', False),
+            ('valid_until', '>=', today),
+            ('valid_until', '<=', horizon),
+            ('decision', '=', 'qualified'),
+        ])
+        if not expiring:
+            return 0
+        Activity = self.env['mail.activity']
+        ActivityType = self.env.ref(
+            'mail.mail_activity_data_todo', raise_if_not_found=False,
+        )
+        activity_type_id = ActivityType.id if ActivityType else False
+        flagged = 0
+        for qual in expiring:
+            vendor = qual.vendor_id
+            if not vendor:
+                continue
+            assignee = vendor.responsible_id
+            if not assignee:
+                approver_group = self.env.ref(
+                    'product_graph_base.group_pg_approver',
+                    raise_if_not_found=False,
+                )
+                if approver_group:
+                    # Odoo 19 removed res.groups.users — query the inverse.
+                    assignee = self.env['res.users'].search(
+                        [('group_ids', 'in', approver_group.id)], limit=1,
+                    )
+            days_left = (qual.valid_until - today).days
+            summary = _(
+                "Vendor qualification expires in %(days)d day(s) (%(date)s)"
+            ) % {'days': days_left, 'date': qual.valid_until}
+            note = _(
+                "Qualification decided %(decided)s by %(by)s expires on "
+                "%(until)s. Schedule re-qualification or move the vendor to "
+                "Probationary."
+            ) % {
+                'decided': qual.decided_on,
+                'by': qual.decided_by_id.name or _('(unknown)'),
+                'until': qual.valid_until,
+            }
+            existing = Activity.search([
+                ('res_model', '=', vendor._name),
+                ('res_id', '=', vendor.id),
+                ('summary', '=', summary),
+            ], limit=1)
+            if existing:
+                continue
+            if assignee and activity_type_id:
+                vendor_model = self.env['ir.model']._get(vendor._name)
+                Activity.sudo().create({
+                    'res_model_id': vendor_model.id,
+                    'res_id': vendor.id,
+                    'activity_type_id': activity_type_id,
+                    'summary': summary,
+                    'note': note,
+                    'user_id': assignee.id,
+                    'date_deadline': qual.valid_until,
+                })
+            vendor.message_post(
+                body=_(
+                    "<b>Qualification expiring soon</b> — %s"
+                ) % summary,
+                subtype_xmlid='mail.mt_log_note',
+            )
+            self.env['pg.audit.log'].sudo()._log(
+                vendor, 'other',
+                notes=_('Qualification expiring on %s') % qual.valid_until,
+                payload={
+                    'qualification_id': qual.id,
+                    'valid_until': str(qual.valid_until),
+                    'days_left': days_left,
+                    'assignee_id': assignee.id if assignee else None,
+                },
+            )
+            flagged += 1
+        if flagged:
+            _logger.info(
+                "Flagged %d expiring vendor qualifications (window: %d days)",
+                flagged, QUALIFICATION_EXPIRY_WINDOW_DAYS,
+            )
+        return flagged

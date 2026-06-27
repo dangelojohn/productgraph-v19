@@ -6,13 +6,16 @@
         <field name="model">pg.cad.connector</field>
         <field name="arch" type="xml">
             <list decoration-success="last_sync_status == 'ok'"
+                  decoration-warning="last_sync_status == 'partial'"
                   decoration-danger="last_sync_status == 'failed'"
                   decoration-muted="state == 'inactive'">
                 <field name="code"/>
                 <field name="name"/>
                 <field name="driver_code"/>
                 <field name="state" widget="badge"/>
+                <field name="sync_schedule"/>
                 <field name="last_sync_at"/>
+                <field name="next_sync_at" optional="show"/>
                 <field name="last_sync_status" widget="badge"/>
                 <field name="import_count" string="# Pulls"/>
             </list>
@@ -36,6 +39,13 @@
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_imports" type="object"
+                                class="oe_stat_button" icon="fa-history">
+                            <field name="import_count" widget="statinfo"
+                                   string="Sync History"/>
+                        </button>
+                    </div>
                     <div class="oe_title">
                         <label for="name"/>
                         <h1>
@@ -48,8 +58,13 @@
                             <field name="driver_code"/>
                             <field name="create_revision"/>
                             <field name="create_ebom"/>
+                            <field name="auto_revise_on_change"/>
+                            <field name="responsible_user_id"/>
                         </group>
                         <group>
+                            <field name="sync_schedule"/>
+                            <field name="next_sync_at" readonly="1"
+                                   invisible="sync_schedule == 'manual'"/>
                             <field name="last_sync_at" readonly="1"/>
                             <field name="last_sync_status" readonly="1"/>
                             <field name="import_count" readonly="1"/>
@@ -90,6 +105,18 @@
         <field name="name">CAD Connectors</field>
         <field name="res_model">pg.cad.connector</field>
         <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No CAD connectors configured.
+            </p>
+            <p>
+                Click <b>New</b> to set up a SOLIDWORKS, Onshape, or JSON
+                file connector. The JSON file driver is the recommended
+                starting point — every CAD / PDM system can export its
+                BOM to JSON, and the same payload shape works for all
+                drivers.
+            </p>
+        </field>
     </record>
 
 </odoo>

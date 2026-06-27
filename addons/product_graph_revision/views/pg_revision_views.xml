@@ -30,13 +30,22 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_promote" string="Promote"
+                            type="object" class="btn-primary"
+                            invisible="not can_promote"
+                            help="Advance to next valid state (Draft→Review, Review→Released, etc.)."/>
+                    <button name="action_express_release" string="Express Release"
+                            type="object" class="btn-danger"
+                            invisible="not can_express_release"
+                            confirm="Express Release will submit AND release this revision in one step. Continue?"
+                            help="One-click submit-for-review + release. Requires SoD off or admin override."/>
                     <button name="action_submit_for_review" string="Submit for Review"
                             type="object" class="oe_highlight"
-                            invisible="state != 'draft'"
+                            invisible="state != 'draft' or not can_submit_for_review"
                             groups="product_graph_base.group_pg_engineer"/>
                     <button name="action_release" string="Release"
                             type="object" class="oe_highlight"
-                            invisible="state != 'review'"
+                            invisible="state != 'review' or not can_release"
                             confirm="Release this revision? This is irreversible — the revision becomes immutable."
                             groups="product_graph_base.group_pg_approver"/>
                     <button name="action_reject_to_draft" string="Reject"
@@ -109,8 +118,30 @@
                            groups="product_graph_base.group_pg_engineer">
                         <field name="rejection_reason" readonly="1"/>
                     </group>
+                    <!-- PG-105: helper booleans drive button visibility + banners -->
+                    <field name="can_submit_for_review" invisible="1"/>
+                    <field name="can_release" invisible="1"/>
+                    <field name="can_promote" invisible="1"/>
+                    <field name="can_express_release" invisible="1"/>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="state != 'draft' or can_submit_for_review">
+                        <i class="fa fa-info-circle"/>
+                        <field name="submit_blocked_reason" nolabel="1" readonly="1"/>
+                    </div>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="state != 'review' or can_release">
+                        <i class="fa fa-info-circle"/>
+                        <field name="release_blocked_reason" nolabel="1" readonly="1"/>
+                    </div>
                     <notebook>
                         <page string="Properties" name="page_properties">
+                            <div class="o_row mb-2">
+                                <button name="action_open_apply_template_wizard"
+                                        type="object"
+                                        string="Apply Template"
+                                        class="btn btn-secondary"
+                                        icon="fa-plus-square"/>
+                            </div>
                             <field name="property_value_ids">
                                 <list editable="bottom">
                                     <field name="field_id"

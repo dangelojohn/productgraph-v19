@@ -7,7 +7,11 @@ class PgRevision(models.Model):
     _inherit = 'pg.revision'
 
     ebom_ids = fields.One2many('pg.ebom', 'revision_id', string='EBOMs')
-    ebom_count = fields.Integer(compute='_compute_ebom_count', string='# EBOMs')
+    ebom_count = fields.Integer(
+        compute='_compute_ebom_count',
+        string='# EBOMs',
+        store=True,
+    )
 
     @api.depends('ebom_ids')
     def _compute_ebom_count(self):

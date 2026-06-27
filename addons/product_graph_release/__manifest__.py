@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Release Governance',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.2.0',
     'category': 'Manufacturing/PLM',
     'summary': 'The single governance gate between engineering and manufacturing — the only place mrp.bom is created',
     'description': """
@@ -53,6 +53,8 @@ Compatible with Odoo 19.0 Community Edition.
         'views/pg_release_views.xml',
         'views/pg_release_line_views.xml',
         'views/mrp_production_inherit_views.xml',
+        'views/mrp_bom_inherit_views.xml',
+        'data/pg_release_cron.xml',
         'wizards/pg_release_wizard_views.xml',
         'reports/pg_report_indented_bom.xml',
         'reports/pg_report_where_used.xml',

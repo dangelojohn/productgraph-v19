@@ -1,27 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <menuitem id="menu_pg_rfq_root"
-              name="RFQ"
-              parent="product_graph_base.menu_pg_root"
-              sequence="45"/>
+    <!-- PG-142: Consolidated under Sourcing (renamed from Vendors) instead
+         of a separate top-level "RFQ" menu. Reduces top-level menu count
+         so CAD + Configuration stay visible at standard working widths. -->
 
     <menuitem id="menu_pg_rfq"
               name="RFQs"
-              parent="menu_pg_rfq_root"
+              parent="product_graph_vendor.menu_pg_vendor_root"
               action="action_pg_rfq"
-              sequence="10"/>
+              sequence="40"/>
 
     <menuitem id="menu_pg_rfq_line"
               name="RFQ Lines"
-              parent="menu_pg_rfq_root"
+              parent="product_graph_vendor.menu_pg_vendor_root"
               action="action_pg_rfq_line"
-              sequence="20"/>
+              sequence="50"/>
 
     <menuitem id="menu_pg_rfq_bid"
               name="Bids"
-              parent="menu_pg_rfq_root"
+              parent="product_graph_vendor.menu_pg_vendor_root"
               action="action_pg_rfq_bid"
-              sequence="30"/>
+              sequence="60"/>
 
 </odoo>

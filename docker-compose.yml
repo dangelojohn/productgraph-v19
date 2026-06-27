@@ -1,0 +1,41 @@
+# Local dev/test stack for ProductGraph v19.
+# See TESTING.md for usage. Never points at prod (QNAP southbrook stack).
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  odoo:
+    # odoo:19.0 official tag; if it ever disappears from Docker Hub fall back
+    # to odoo:latest and pin the digest in this comment.
+    image: odoo:19.0
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      HOST: db
+      USER: odoo
+      PASSWORD: odoo
+    volumes:
+      - ./addons:/mnt/extra-addons:ro
+      - ./conf/odoo.conf:/etc/odoo/odoo.conf:ro
+      - odoo-data:/var/lib/odoo
+    ports:
+      # 8069 + 8072 conflict with other local Odoo dev containers (v19c-odoo,
+      # sami-odoo on 8169). Use 8269/8272 instead to coexist.
+      - "8269:8069"
+      - "8272:8072"
+
+volumes:
+  pgdata:
+  odoo-data:

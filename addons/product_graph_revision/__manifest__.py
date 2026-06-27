@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Revision Control',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.7.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Revision lifecycle, property values, and versioned engineering documents',
     'description': """
@@ -38,6 +38,7 @@ Compatible with Odoo 19.0 Community Edition.
         'views/pg_revision_views.xml',
         'views/pg_asset_views.xml',
         'wizards/pg_revision_reject_wizard_views.xml',
+        'wizards/apply_template_wizard_view.xml',
         'views/pg_revision_menus.xml',
     ],
     'demo': [

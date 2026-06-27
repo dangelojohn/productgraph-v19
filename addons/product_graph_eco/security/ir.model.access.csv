@@ -6,3 +6,4 @@ access_pg_eco_line_viewer,pg.eco.line viewer read,model_pg_eco_line,product_grap
 access_pg_eco_line_engineer,pg.eco.line engineer rw,model_pg_eco_line,product_graph_base.group_pg_engineer,1,1,1,1
 access_pg_eco_approval_viewer,pg.eco.approval viewer read,model_pg_eco_approval,product_graph_base.group_pg_viewer,1,0,0,0
 access_pg_eco_approval_approver,pg.eco.approval approver create,model_pg_eco_approval,product_graph_base.group_pg_approver,1,0,1,0
+access_pg_eco_impact_wizard_engineer,pg.eco.impact.wizard engineer rw,model_pg_eco_impact_wizard,product_graph_base.group_pg_engineer,1,1,1,1

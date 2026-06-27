@@ -25,3 +25,5 @@ access_pg_asset_admin,pg.asset admin,model_pg_asset,product_graph_base.group_pg_
 access_pg_audit_log_viewer,pg.audit.log viewer,model_pg_audit_log,product_graph_base.group_pg_viewer,1,0,0,0
 access_pg_audit_log_engineer,pg.audit.log engineer,model_pg_audit_log,product_graph_base.group_pg_engineer,1,0,1,0
 access_pg_audit_log_admin,pg.audit.log admin,model_pg_audit_log,product_graph_base.group_pg_admin,1,0,1,0
+access_pg_force_release_wizard_approver,pg.force.release.wizard approver,model_pg_force_release_wizard,product_graph_base.group_pg_approver,1,1,1,1
+access_pg_force_release_wizard_admin,pg.force.release.wizard admin,model_pg_force_release_wizard,product_graph_base.group_pg_admin,1,1,1,1

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PG-144 — Property Template Apply-in-Context wizard form. -->
+<odoo>
+
+    <record id="view_pg_apply_template_wizard_form" model="ir.ui.view">
+        <field name="name">pg.apply.template.wizard.form</field>
+        <field name="model">pg.apply.template.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Apply Property Template">
+                <div class="alert alert-info" role="alert">
+                    Select one or more templates to apply. Each template is
+                    linked to the item; if a target revision is set, empty
+                    property values are also created on it for every field
+                    in the template.
+                </div>
+                <group>
+                    <field name="item_id" readonly="1"/>
+                    <field name="item_type" invisible="1"/>
+                    <field name="revision_id" readonly="1"
+                           invisible="not revision_id"/>
+                </group>
+                <separator string="Suggested for this Item"/>
+                <field name="suggested_template_ids"
+                       widget="many2many_tags"
+                       readonly="1"/>
+                <separator string="Select to Apply"/>
+                <field name="template_ids"
+                       widget="many2many_tags"
+                       options="{'no_create': True, 'no_create_edit': True}"
+                       placeholder="Pick templates to apply..."/>
+                <footer>
+                    <button name="action_apply"
+                            type="object"
+                            string="Apply"
+                            class="btn-primary"
+                            invisible="not template_ids"/>
+                    <button special="cancel"
+                            string="Cancel"
+                            class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Vendor Governance (AVL/AML)',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.2.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Approved Vendor List / Approved Manufacturer List on top of '
                'the pg.vendor + pg.vendor.part stubs',
@@ -52,6 +52,7 @@ Compatible with Odoo 19.0 Community Edition.
     ],
     'data': [
         'security/ir.model.access.csv',
+        'data/pg_vendor_cron.xml',
         'views/pg_vendor_views.xml',
         'views/pg_vendor_part_views.xml',
         'views/pg_vendor_qualification_views.xml',
