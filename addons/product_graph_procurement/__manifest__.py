@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Procurement Bridge',
-    'version': '19.0.1.3.0',
+    'version': '19.0.1.4.0',
     'category': 'Manufacturing/PLM',
     'summary': 'On RFQ award, generate a purchase.requisition with the '
                'winning bids — closes the AVL → MRP loop',

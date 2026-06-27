@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Hook the RFQ award path to create a purchase.requisition."""
 import logging
+from datetime import timedelta
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
@@ -76,7 +77,51 @@ class PgRfq(models.Model):
         if len(partners) == 1:
             req_vals['vendor_id'] = partners.id
 
+        # W021 / R6.2 — stamp date_end + schedule_date from awarded-bid
+        # lead-time data so the buyer picks up a ready-to-send
+        # requisition rather than having to retype dates. Uses the
+        # MAXIMUM lead-time across awarded bids (worst case → ensures
+        # nobody promises earlier than the slowest vendor can deliver).
+        awarded_bids = self.line_ids.mapped(
+            lambda l: l.bid_ids.filtered('is_awarded')[:1])
+        leads = [b.lead_time_days for b in awarded_bids if b.lead_time_days]
+        max_lead = max(leads) if leads else 0
+        today = fields.Date.context_today(self)
+        if max_lead and 'schedule_date' in Requisition._fields:
+            req_vals['schedule_date'] = today + timedelta(days=max_lead)
+        # date_end on purchase.requisition is the AGREEMENT validity
+        # cutoff (when bids/blanket-order stops accepting). Use the
+        # earliest quote-valid-until across awarded bids; if no bids
+        # supplied valid_until, fall back to today + max_lead + 30d
+        # buffer so the requisition has a sensible expiry.
+        valid_dates = [b.valid_until for b in awarded_bids if b.valid_until]
+        if 'date_end' in Requisition._fields:
+            if valid_dates:
+                req_vals['date_end'] = min(valid_dates)
+            elif max_lead:
+                req_vals['date_end'] = today + timedelta(days=max_lead + 30)
+
         requisition = Requisition.create(req_vals)
+
+        # Lead-time annotation on the requisition chatter so the buyer
+        # sees the per-vendor breakdown without drilling back into the
+        # RFQ. Posted as a structured log note (not a customer-visible
+        # message).
+        if awarded_bids:
+            lead_lines = [
+                _("• %s: %s days (qty %s)") % (
+                    bid.vendor_id.display_name,
+                    bid.lead_time_days or 0,
+                    bid.line_id.qty,
+                )
+                for bid in awarded_bids
+            ]
+            requisition.message_post(
+                body=_(
+                    "ProductGraph lead-time summary (max %s days):\n%s"
+                ) % (max_lead, "\n".join(lead_lines)),
+                subtype_xmlid='mail.mt_log_note',
+            )
 
         # Build the lines.
         for rfq_line in self.line_ids:
