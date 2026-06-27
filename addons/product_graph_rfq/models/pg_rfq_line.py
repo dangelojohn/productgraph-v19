@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 
 class PgRfqLine(models.Model):
@@ -174,3 +174,30 @@ class PgRfqLine(models.Model):
                     % (rec.rfq_id.display_name, rec.rfq_state)
                 )
         return super().unlink()
+
+    # W060 (R6.10) — split-award integrity. Sum of awarded_qty across
+    # the line's bids must not exceed line.qty (single-source default
+    # = one bid carrying line.qty, dual-source = e.g. 60+40 against a
+    # qty=100). The constraint fires on edit of any awarded_qty,
+    # is_awarded, or qty so a buyer dragging the split sliders gets
+    # immediate feedback instead of failing on Award.
+    @api.constrains('qty', 'bid_ids', 'bid_ids.awarded_qty', 'bid_ids.is_awarded')
+    def _check_awarded_qty_sum(self):
+        for rec in self:
+            awarded = rec.bid_ids.filtered('is_awarded')
+            if not awarded:
+                continue
+            total = sum(awarded.mapped('awarded_qty'))
+            # Tolerance for float arithmetic — 1e-6 is plenty for
+            # quantities expressed in whole / fractional units.
+            if total - rec.qty > 1e-6:
+                raise ValidationError(
+                    _("RFQ line for %(item)s: awarded quantity total "
+                      "(%(total).4g) exceeds line quantity "
+                      "(%(qty).4g). Reduce the split or bump the line "
+                      "qty before awarding.") % {
+                        'item': rec.item_id.display_name,
+                        'total': total,
+                        'qty': rec.qty,
+                    }
+                )

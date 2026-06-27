@@ -158,12 +158,30 @@ class TestPgRfqFlow(TransactionCase):
         with self.assertRaises(ValidationError):
             rfq.action_award()
 
-    def test_two_awarded_bids_per_line_blocked_by_constraint(self):
+    def test_two_awarded_bids_split_within_qty_now_allowed(self):
+        # W060 (R6.10, 2026-06-27) — dual-source allows multiple
+        # awarded bids per line as long as their awarded_qty splits
+        # sum to <= line.qty. Line qty here is 100 (see _make_rfq).
         rfq = self._make_rfq()
         rfq.action_send()
         self._add_bid(rfq.line_ids, self.vendor_a, 10.0, awarded=True)
-        with self.assertRaises(ValidationError):
-            self._add_bid(rfq.line_ids, self.vendor_b, 11.0, awarded=True)
+        # awarded_qty default 0; setting awarded_qty=60 + 40 on the
+        # split. Writing awarded on B without awarded_qty initially is
+        # fine; we set both via write after.
+        self.env['pg.rfq.bid'].create({
+            'line_id': rfq.line_ids.id,
+            'vendor_id': self.vendor_b.id,
+            'unit_price': 11.0,
+            'is_awarded': True,
+            'awarded_qty': 40.0,
+        })
+        rfq.line_ids.bid_ids.filtered(
+            lambda b: b.vendor_id == self.vendor_a
+        ).awarded_qty = 60.0
+        # No ValidationError — constraint passes since 60+40 == 100.
+        self.assertEqual(
+            len(rfq.line_ids.bid_ids.filtered('is_awarded')), 2,
+        )
 
     def test_cancel_from_sent(self):
         rfq = self._make_rfq()

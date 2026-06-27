@@ -191,6 +191,8 @@
                                                 <field name="score" readonly="1" optional="show"/>
                                                 <field name="valid_until"/>
                                                 <field name="is_awarded" widget="boolean_toggle"/>
+                                                <!-- W060 (R6.10) — split-award qty. -->
+                                                <field name="awarded_qty" optional="show"/>
                                                 <field name="comment" optional="hide"/>
                                             </list>
                                         </field>

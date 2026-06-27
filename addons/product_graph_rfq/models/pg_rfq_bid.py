@@ -34,6 +34,24 @@ class PgRfqBid(models.Model):
     valid_until = fields.Date(string='Quote Valid Until')
 
     is_awarded = fields.Boolean(string='Awarded', default=False)
+    # W060 (R6.10, 2026-06-27) — dual-source / split award support.
+    # `awarded_qty` lets a single line be split across multiple winning
+    # bids (e.g. 60/40 between two vendors for risk diversification).
+    # Default 0; when is_awarded flips True without an explicit qty the
+    # canonical single-source path mirrors the parent line.qty onto this
+    # field at award time (see pg.rfq.action_award). The pg.rfq.line
+    # constraint ensures the sum of awarded_qty across bids does not
+    # exceed the line.qty, and that every is_awarded bid carries a
+    # positive awarded_qty.
+    awarded_qty = fields.Float(
+        string='Awarded Qty',
+        default=0.0,
+        help='Quantity awarded to THIS vendor on this RFQ line. The sum '
+             'of awarded_qty across all bids on the line may not exceed '
+             'line.qty. Default 0 — for single-source awards the Award '
+             'action backfills this with line.qty when the bid is '
+             'flipped without an explicit awarded_qty.',
+    )
     comment = fields.Text(string='Comment')
 
     # W032 (R6.7, 2026-06-27) — bid-expiry tracking.
@@ -116,22 +134,21 @@ class PgRfqBid(models.Model):
     # ──────────────────────────────────────────────────────────────────
     # Constraints
     # ──────────────────────────────────────────────────────────────────
-    @api.constrains('is_awarded', 'line_id')
-    def _check_one_awarded_per_line(self):
+    # W060 (R6.10, 2026-06-27) — the original "exactly one awarded bid
+    # per line" constraint was removed to allow dual-source split
+    # awards. The replacement guarantees live on pg.rfq.line
+    # (_check_awarded_qty_sum) and below (_check_awarded_qty_nonneg).
+    # A single-vendor award is still the default — leaving awarded_qty=0
+    # while flipping is_awarded triggers the action_award backfill to
+    # line.qty so legacy callers behave exactly as before.
+
+    @api.constrains('awarded_qty', 'is_awarded')
+    def _check_awarded_qty_nonneg(self):
         for rec in self:
-            if not rec.is_awarded:
-                continue
-            other = self.search([
-                ('line_id', '=', rec.line_id.id),
-                ('is_awarded', '=', True),
-                ('id', '!=', rec.id),
-            ], limit=1)
-            if other:
+            if rec.awarded_qty < 0:
                 raise ValidationError(
-                    _("Line for %s already has an awarded bid (from %s). "
-                      "Only one awarded bid per line is allowed.")
-                    % (rec.line_id.item_id.display_name,
-                       other.vendor_id.name)
+                    _("Awarded quantity cannot be negative (bid for %s).")
+                    % (rec.vendor_id.display_name or rec.id)
                 )
 
     @api.constrains('unit_price')

@@ -42,21 +42,32 @@ class PgRfq(models.Model):
         return True
 
     def _create_requisition(self):
-        """Create a purchase.requisition + lines from the awarded bids."""
+        """Create a purchase.requisition + lines from the awarded bids.
+
+        W060 (R6.10, 2026-06-27) — dual-source support. Each awarded
+        bid emits ONE purchase.requisition.line carrying that bid's
+        vendor + awarded_qty + price. Single-source RFQs land one line
+        per pg.rfq.line as before (because there's exactly one awarded
+        bid per line). Split awards land N lines per pg.rfq.line — one
+        per awarded vendor — and procurement converts each into the
+        appropriate PO.
+        """
         self.ensure_one()
         Requisition = self.env['purchase.requisition']
         ReqLine = self.env['purchase.requisition.line']
 
-        # Vendor must have a linked partner for the requisition's
-        # vendor_id field.
-        awarded = self.line_ids.mapped(
-            lambda l: l.bid_ids.filtered('is_awarded')[:1])
-        if not awarded:
+        # W060 — gather ALL awarded bids across all lines (not just the
+        # first). For a single-source line `awarded` will be one bid;
+        # for a dual-source split it'll be 2+.
+        awarded_bids = self.env['pg.rfq.bid']
+        for line in self.line_ids:
+            awarded_bids |= line.bid_ids.filtered('is_awarded')
+        if not awarded_bids:
             raise UserError(_(
                 "RFQ %s has no awarded bids — cannot create a "
                 "purchase requisition.") % self.display_name)
 
-        partners = awarded.mapped('vendor_id.partner_id')
+        partners = awarded_bids.mapped('vendor_id.partner_id')
         # Multiple vendors per RFQ → multi-vendor requisition (purchase
         # requisition supports several supplier_ids).
         partners = partners.filtered(lambda p: p)
@@ -82,8 +93,8 @@ class PgRfq(models.Model):
         # requisition rather than having to retype dates. Uses the
         # MAXIMUM lead-time across awarded bids (worst case → ensures
         # nobody promises earlier than the slowest vendor can deliver).
-        awarded_bids = self.line_ids.mapped(
-            lambda l: l.bid_ids.filtered('is_awarded')[:1])
+        # W060 — `awarded_bids` already covers every awarded bid (incl.
+        # dual-source splits).
         leads = [b.lead_time_days for b in awarded_bids if b.lead_time_days]
         max_lead = max(leads) if leads else 0
         today = fields.Date.context_today(self)
@@ -106,12 +117,14 @@ class PgRfq(models.Model):
         # Lead-time annotation on the requisition chatter so the buyer
         # sees the per-vendor breakdown without drilling back into the
         # RFQ. Posted as a structured log note (not a customer-visible
-        # message).
+        # message). W060 — per-bid (not per-line) so dual-source splits
+        # render both rows explicitly.
         if awarded_bids:
             lead_lines = [
-                _("• %s: %s days (qty %s)") % (
+                _("• %s: %s days (awarded qty %s of line qty %s)") % (
                     bid.vendor_id.display_name,
                     bid.lead_time_days or 0,
+                    bid.awarded_qty or bid.line_id.qty,
                     bid.line_id.qty,
                 )
                 for bid in awarded_bids
@@ -123,10 +136,13 @@ class PgRfq(models.Model):
                 subtype_xmlid='mail.mt_log_note',
             )
 
-        # Build the lines.
+        # Build the lines. W060 — emit ONE requisition line per
+        # awarded bid (not per RFQ line). For single-source flows each
+        # RFQ line still produces exactly one req line because there's
+        # one awarded bid; dual-source splits emit 2+ per RFQ line.
         for rfq_line in self.line_ids:
-            bid = rfq_line.bid_ids.filtered('is_awarded')[:1]
-            if not bid:
+            awarded_for_line = rfq_line.bid_ids.filtered('is_awarded')
+            if not awarded_for_line:
                 continue
             product = rfq_line.item_id.product_id
             if not product:
@@ -145,29 +161,36 @@ class PgRfq(models.Model):
                 if 'uom_id' in product._fields
                 else self.env.ref('uom.product_uom_unit')
             )
-            line_vals = {
-                'requisition_id': requisition.id,
-                'product_id': product.id,
-                'product_qty': rfq_line.qty,
-                'product_uom_id': uom.id,
-                'price_unit': bid.unit_price,
-                # W003 / R6.1 — back-refs to close the traceability gap.
-                # `pg_item_id` lands on the requisition line and propagates
-                # to purchase.order.line via a stored related (see
-                # purchase_order_line.py). The bridge stamps both so future
-                # PO defect-attribution is a 2-click walk, not a 7-click
-                # string-match on requisition.reference.
-                'pg_item_id': rfq_line.item_id.id,
-                'pg_rfq_line_id': rfq_line.id,
-            }
-            if 'qty_ordered' in ReqLine._fields:
-                line_vals['qty_ordered'] = 0.0
-            # Vendor-part-number → variant description so the eventual PO
-            # carries it through to the supplier.
-            if bid.vendor_part_number and 'product_description_variants' in ReqLine._fields:
-                line_vals['product_description_variants'] = bid.vendor_part_number
+            for bid in awarded_for_line:
+                # W060 — qty on the requisition line = awarded_qty
+                # (the slice this vendor won), NOT the full line qty.
+                # Falls back to line.qty when awarded_qty is 0 to keep
+                # legacy single-source callers correct even if they
+                # bypassed the action_award backfill.
+                qty = bid.awarded_qty or rfq_line.qty
+                line_vals = {
+                    'requisition_id': requisition.id,
+                    'product_id': product.id,
+                    'product_qty': qty,
+                    'product_uom_id': uom.id,
+                    'price_unit': bid.unit_price,
+                    # W003 / R6.1 — back-refs to close the traceability gap.
+                    # `pg_item_id` lands on the requisition line and propagates
+                    # to purchase.order.line via a stored related (see
+                    # purchase_order_line.py). The bridge stamps both so future
+                    # PO defect-attribution is a 2-click walk, not a 7-click
+                    # string-match on requisition.reference.
+                    'pg_item_id': rfq_line.item_id.id,
+                    'pg_rfq_line_id': rfq_line.id,
+                }
+                if 'qty_ordered' in ReqLine._fields:
+                    line_vals['qty_ordered'] = 0.0
+                # Vendor-part-number → variant description so the
+                # eventual PO carries it through to the supplier.
+                if bid.vendor_part_number and 'product_description_variants' in ReqLine._fields:
+                    line_vals['product_description_variants'] = bid.vendor_part_number
 
-            ReqLine.create(line_vals)
+                ReqLine.create(line_vals)
 
         self.requisition_id = requisition.id
         self.message_post(

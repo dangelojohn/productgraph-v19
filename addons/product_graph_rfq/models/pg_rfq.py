@@ -201,21 +201,50 @@ class PgRfq(models.Model):
             rec._transition('cancelled')
 
     def action_award(self):
+        # W060 (R6.10, 2026-06-27) — dual-source award. Each line may
+        # carry one OR multiple awarded bids; the sum of awarded_qty
+        # across them must not exceed line.qty (constraint enforced on
+        # pg.rfq.line). Single-source legacy callers leave awarded_qty
+        # at 0 and we backfill with line.qty here so the canonical flow
+        # is unchanged.
         for rec in self:
             if rec.state != 'received':
                 raise UserError(
                     _("RFQ %s must be in 'received' before it can be awarded "
                       "(currently %s).") % (rec.display_name, rec.state)
                 )
+            total_awards = 0
             for line in rec.line_ids:
                 awarded = line.bid_ids.filtered('is_awarded')
-                if len(awarded) != 1:
+                if not awarded:
                     raise ValidationError(
-                        _("Line for %s must have exactly one awarded bid "
-                          "(found %d).") % (
-                              line.item_id.display_name, len(awarded))
+                        _("Line for %s has no awarded bid — flag at least "
+                          "one bid as Awarded before clicking Award.")
+                        % line.item_id.display_name
                     )
-                rec._award_bid(line, awarded)
+                # Backfill awarded_qty for single-source: one awarded
+                # bid carrying qty=0 gets the full line qty. Multi-bid
+                # splits MUST set awarded_qty explicitly per bid; if
+                # any single multi-bid carries 0 we treat that as the
+                # buyer leaving an unfilled slot and reject.
+                if len(awarded) == 1 and not awarded.awarded_qty:
+                    awarded.awarded_qty = line.qty
+                else:
+                    zero = awarded.filtered(lambda b: not b.awarded_qty)
+                    if zero:
+                        raise ValidationError(
+                            _("Line for %(item)s has %(n)d awarded bids "
+                              "but %(z)d carry awarded_qty=0. Either "
+                              "set a positive awarded_qty on each split "
+                              "bid or un-award the empty ones.") % {
+                                'item': line.item_id.display_name,
+                                'n': len(awarded),
+                                'z': len(zero),
+                            }
+                        )
+                for bid in awarded:
+                    rec._award_bid(line, bid)
+                total_awards += len(awarded)
             rec.with_context(_pg_rfq_award_bypass=True).write({
                 'state': 'awarded',
                 'awarded_on': fields.Datetime.now(),
@@ -223,11 +252,15 @@ class PgRfq(models.Model):
             rec.env['pg.audit.log'].sudo()._log(
                 rec, 'state_change',
                 from_state='received', to_state='awarded',
-                notes='AVL pricing refreshed from %d bids' % len(rec.line_ids),
+                notes='AVL pricing refreshed from %d bid(s) across %d line(s)' % (
+                    total_awards, len(rec.line_ids),
+                ),
             )
             rec.message_post(
-                body=_("RFQ <b>awarded</b>. AVL refreshed for %d items.")
-                % len(rec.line_ids),
+                body=_("RFQ <b>awarded</b>. AVL refreshed from %(n)d bid(s) "
+                       "across %(lines)d line(s).") % {
+                    'n': total_awards, 'lines': len(rec.line_ids),
+                },
                 subtype_xmlid='mail.mt_log_note',
             )
 
