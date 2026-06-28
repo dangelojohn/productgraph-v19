@@ -226,6 +226,55 @@ class PgRfq(models.Model):
                 )
             rec._transition('sent')
             rec.write({'sent_on': fields.Datetime.now()})
+            # W076 (R6.12) — invite each distinct vendor to bid via the
+            # portal. One email per vendor (not per line) — the link
+            # lands on /my/rfq-bids if the vendor has multiple lines.
+            # Failure is logged + chatter-posted but never blocks the
+            # state transition (the buyer needs to be able to send even
+            # if the mail server is down).
+            try:
+                rec._w076_send_vendor_invitations()
+            except Exception as e:  # noqa: BLE001 — never block
+                _logger.warning(
+                    "W076: vendor invitation send failed for RFQ %s: %s",
+                    rec.display_name, e,
+                )
+                rec.message_post(
+                    body=_("Vendor portal invitation email failed: %s. "
+                           "Re-send manually from each bid record.") % e,
+                    subtype_xmlid='mail.mt_log_note',
+                )
+
+    def _w076_send_vendor_invitations(self):
+        """Send the W076 portal invitation email — one per distinct vendor
+        across this RFQ's lines.
+
+        We deliberately pick the FIRST bid for each vendor as the
+        target record (mail.template is bound to pg.rfq.bid because
+        the portal URL is per-bid). If a vendor has multiple bids
+        across lines, the email body still works — the recipient lands
+        in /my/rfq-bids and sees them all. Per-line invites would be
+        spammy and confusing.
+        """
+        self.ensure_one()
+        tmpl = self.env.ref(
+            'product_graph_rfq.mail_template_rfq_invitation',
+            raise_if_not_found=False,
+        )
+        if not tmpl:
+            return  # template missing — install is partial; skip silently
+        seen_vendors = set()
+        for line in self.line_ids:
+            for bid in line.bid_ids:
+                if not bid.vendor_id or bid.vendor_id.id in seen_vendors:
+                    continue
+                if not bid.vendor_id.partner_id or not bid.vendor_id.partner_id.email:
+                    continue
+                seen_vendors.add(bid.vendor_id.id)
+                tmpl.sudo().send_mail(
+                    bid.id, force_send=False,
+                    email_layout_xmlid='mail.mail_notification_light',
+                )
 
     def action_mark_received(self):
         for rec in self:

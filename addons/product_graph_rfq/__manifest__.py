@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – RFQ Workflow',
-    'version': '19.0.1.10.0',
+    'version': '19.0.1.11.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Engineering-driven Request-for-Quote workflow that feeds AVL '
                'pricing from real vendor bids',
@@ -70,15 +70,22 @@ Compatible with Odoo 19.0 Community Edition.
         'product_graph_base',
         'product_graph_vendor',
         'mail',
+        # W076 (R6.12) — vendor portal stub. `portal` provides portal.mixin
+        # + the /my layout + CustomerPortal base controller; `website`
+        # gives us the website=True render path for portal pages.
+        'portal',
+        'website',
     ],
     'data': [
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',
         'data/pg_rfq_cron.xml',
+        'data/pg_rfq_mail_template.xml',
         'views/pg_rfq_views.xml',
         'views/pg_rfq_line_views.xml',
         'views/pg_rfq_bid_views.xml',
         'views/pg_sourcing_inbox.xml',
+        'views/pg_rfq_portal_templates.xml',
         'views/pg_rfq_menus.xml',
     ],
     'installable': True,

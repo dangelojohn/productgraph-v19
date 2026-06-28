@@ -6,7 +6,19 @@ from odoo.exceptions import UserError, ValidationError
 class PgRfqBid(models.Model):
     _name = 'pg.rfq.bid'
     _description = 'RFQ Vendor Bid'
+    _inherit = ['portal.mixin']
     _order = 'line_id, unit_price'
+
+    # ──────────────────────────────────────────────────────────────────
+    # W076 (R6.12, 2026-06-27) — vendor portal stub
+    # ──────────────────────────────────────────────────────────────────
+    # The bid is the unit of self-service. A vendor's res.users sees ONE
+    # row per (rfq, line) under /my/rfq-bids and clicks through to
+    # /my/rfq-bids/<id> to fill in the quote. portal.mixin provides
+    # `access_token` + `access_url` + helpers; we override _compute_access_url
+    # so the buyer's email can deep-link to the bid form with a signed
+    # token. The token gates the submission POST as a second factor
+    # (login + token + vendor.partner_id all required).
 
     line_id = fields.Many2one(
         'pg.rfq.line', string='RFQ Line',
@@ -132,6 +144,97 @@ class PgRfqBid(models.Model):
         )
 
     # ──────────────────────────────────────────────────────────────────
+    # W076 (R6.12) — portal hooks
+    # ──────────────────────────────────────────────────────────────────
+    def _compute_access_url(self):
+        super()._compute_access_url()
+        for bid in self:
+            bid.access_url = f'/my/rfq-bids/{bid.id}' if bid.id else '#'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        # Mint an access token at creation so the buyer's invitation
+        # email can always deep-link. portal.mixin's
+        # `_portal_ensure_token` would lazy-create one on first share,
+        # but having it eagerly available simplifies the email send +
+        # the W076 portal submission flow (token compared via consteq).
+        for rec in records:
+            if not rec.access_token:
+                rec.sudo()._portal_ensure_token()
+        return records
+
+    def _portal_can_be_submitted(self):
+        """True when the bid is still mutable by the vendor through the portal.
+
+        The submission endpoint locks down once the parent RFQ moves past
+        ``received`` (i.e. into ``awarded`` or ``cancelled``). This is the
+        single source of truth used by both the controller (to short-circuit
+        the POST) and the QWeb template (to hide the Submit button)."""
+        self.ensure_one()
+        return self.rfq_state in self._editable_states()
+
+    def _portal_post_submission(self, values, by_user):
+        """Apply a vendor-portal submission to this bid.
+
+        Called from the portal controller after token + identity checks.
+        Validates the writable field set, applies the write under sudo
+        (the vendor is a portal user without backend RW), and drops a
+        chatter note on both the bid and parent RFQ so the buyer sees
+        what changed.
+
+        ``values`` is the already-parsed dict of writable fields:
+            unit_price, lead_time_days, moq, valid_until,
+            vendor_part_number, comment
+        ``by_user`` is the authenticated portal user posting the form.
+        """
+        self.ensure_one()
+        if not self._portal_can_be_submitted():
+            raise UserError(_(
+                "RFQ %s is no longer accepting bids (state: %s)."
+            ) % (self.rfq_id.display_name, self.rfq_state))
+        allowed = {
+            'unit_price', 'lead_time_days', 'moq', 'valid_until',
+            'vendor_part_number', 'comment',
+        }
+        clean = {k: v for k, v in values.items() if k in allowed and v not in (None, '')}
+        if not clean:
+            return False
+        self.sudo().write(clean)
+        # If the RFQ is still in 'sent' state, advance it to 'received'
+        # because at least one vendor responded. We do NOT auto-advance
+        # if every line still has empty bids — that's the buyer's call.
+        if self.rfq_state == 'sent':
+            rfq = self.rfq_id.sudo()
+            if rfq.line_ids and all(l.bid_ids for l in rfq.line_ids):
+                # safe: same precondition as action_mark_received
+                try:
+                    rfq.action_mark_received()
+                except Exception:  # noqa: BLE001 — never block submission
+                    pass
+        change_summary = ', '.join(sorted(clean.keys()))
+        self.sudo().message_post(
+            body=_("Vendor portal update by <b>%s</b>: %s") % (
+                by_user.display_name, change_summary,
+            ),
+            subtype_xmlid='mail.mt_log_note',
+        )
+        self.rfq_id.sudo().message_post(
+            body=_("Bid update from <b>%s</b> (vendor %s) — fields: %s") % (
+                by_user.display_name,
+                self.vendor_id.display_name,
+                change_summary,
+            ),
+            subtype_xmlid='mail.mt_log_note',
+        )
+        self.env['pg.audit.log'].sudo()._log(
+            self.rfq_id, 'other',
+            notes=_('Vendor portal submission for bid %s') % self.id,
+            payload={'bid_id': self.id, 'fields': sorted(clean.keys())},
+        )
+        return True
+
+    # ──────────────────────────────────────────────────────────────────
     # Constraints
     # ──────────────────────────────────────────────────────────────────
     # W060 (R6.10, 2026-06-27) — the original "exactly one awarded bid
@@ -170,8 +273,12 @@ class PgRfqBid(models.Model):
     # W032 — `is_expired` / `expired_on` are written by the daily bid-expiry
     # cron and must be allowed to flow through even on awarded RFQs (the
     # award doesn't un-stale a quote; we still want the audit signal).
+    # W076 — `access_token` is minted on create by `_portal_ensure_token`;
+    # if the parent RFQ is created already-awarded (rare, but possible via
+    # data imports) we allow the token write through the immutability guard
+    # because it carries no economic signal.
     _COMPUTE_ONLY_FIELDS = frozenset({
-        'score', 'is_expired', 'expired_on',
+        'score', 'is_expired', 'expired_on', 'access_token',
     })
 
     def write(self, vals):

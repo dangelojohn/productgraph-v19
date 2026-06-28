@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: LGPL-3.0-only
+     W076 (R6.12, 2026-06-27) — vendor portal stub templates.
+
+     /my landing entry, list view, detail view (with bid form), and a
+     breadcrumb-menu inherit so the portal navigation shows the right
+     trail. Bootstrap classes are the portal-stock ones; no custom CSS
+     so the design rides any current portal theme. Mobile-first: the
+     form labels stack and the table collapses below md.
+-->
+<odoo>
+
+    <!-- /my landing card — counter pulled from controller -->
+    <template id="portal_my_home_menu_rfq_bid"
+              name="Portal layout : RFQ bid menu entries"
+              inherit_id="portal.portal_breadcrumbs" priority="40">
+        <xpath expr="//ol[hasclass('o_portal_submenu')]" position="inside">
+            <li t-if="page_name == 'rfq_bid'"
+                t-attf-class="breadcrumb-item #{'active ' if not bid else ''}">
+                <a t-if="bid" href="/my/rfq-bids">RFQ Bids</a>
+                <t t-else="">RFQ Bids</t>
+            </li>
+            <li t-if="bid" class="breadcrumb-item active">
+                <t t-out="bid.rfq_id.display_name"/>
+            </li>
+        </xpath>
+    </template>
+
+    <template id="portal_my_home_rfq_bid"
+              name="ProductGraph: RFQ Bids on portal home"
+              customize_show="True"
+              inherit_id="portal.portal_my_home" priority="40">
+        <xpath expr="//div[hasclass('o_portal_docs')]" position="inside">
+            <t t-call="portal.portal_docs_entry">
+                <t t-set="icon" t-value="'/web/static/img/rfq.svg'"/>
+                <t t-set="text">Submit prices for the RFQs Southbrook sent you</t>
+                <t t-set="title">My RFQ Bids</t>
+                <t t-set="url" t-value="'/my/rfq-bids'"/>
+                <t t-set="placeholder_count" t-value="'rfq_bid_count'"/>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- /my/rfq-bids — list -->
+    <template id="portal_my_rfq_bids" name="My RFQ Bids">
+        <t t-call="portal.portal_layout">
+            <t t-set="breadcrumbs_searchbar" t-value="True"/>
+
+            <t t-call="portal.portal_searchbar">
+                <t t-set="title">My RFQ Bids</t>
+            </t>
+
+            <t t-if="not bids">
+                <p class="alert alert-info">
+                    No open RFQ bids for your account.
+                    When Southbrook sends you a Request for Quote, it will appear here.
+                </p>
+            </t>
+
+            <t t-if="bids" t-call="portal.portal_table">
+                <thead>
+                    <tr class="active">
+                        <th>RFQ</th>
+                        <th>Item</th>
+                        <th class="text-end">Qty</th>
+                        <th class="text-end">Need By</th>
+                        <th class="text-end">My Price</th>
+                        <th class="text-center">Valid Until</th>
+                        <th class="text-center">State</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr t-foreach="bids" t-as="bid">
+                        <td>
+                            <a t-att-href="'/my/rfq-bids/%s' % bid.id">
+                                <t t-out="bid.rfq_id.name or bid.rfq_id.display_name"/>
+                            </a>
+                        </td>
+                        <td>
+                            <span t-out="bid.line_id.item_id.part_number or bid.line_id.item_id.display_name"/>
+                        </td>
+                        <td class="text-end">
+                            <span t-out="bid.line_id.qty"/>
+                        </td>
+                        <td class="text-end">
+                            <span t-field="bid.line_id.target_date" t-options="{'widget': 'date'}"/>
+                        </td>
+                        <td class="text-end">
+                            <span t-field="bid.unit_price"/>
+                            <span t-if="bid.currency_id" t-out="bid.currency_id.symbol or bid.currency_id.name"/>
+                        </td>
+                        <td class="text-center">
+                            <t t-if="bid.is_expired">
+                                <span class="badge text-bg-danger">Expired</span>
+                            </t>
+                            <t t-else="">
+                                <span t-field="bid.valid_until" t-options="{'widget': 'date'}"/>
+                            </t>
+                        </td>
+                        <td class="text-center">
+                            <t t-if="bid.rfq_state == 'sent'">
+                                <span class="badge text-bg-warning">Awaiting Quote</span>
+                            </t>
+                            <t t-elif="bid.rfq_state == 'received'">
+                                <span class="badge text-bg-info">Bids Received</span>
+                            </t>
+                            <t t-elif="bid.rfq_state == 'awarded'">
+                                <t t-if="bid.is_awarded">
+                                    <span class="badge text-bg-success">Awarded To You</span>
+                                </t>
+                                <t t-else="">
+                                    <span class="badge text-bg-secondary">Awarded (other)</span>
+                                </t>
+                            </t>
+                            <t t-else="">
+                                <span class="badge text-bg-light"><t t-out="bid.rfq_state"/></span>
+                            </t>
+                        </td>
+                    </tr>
+                </tbody>
+            </t>
+        </t>
+    </template>
+
+    <!-- /my/rfq-bids/<id> — detail + form -->
+    <template id="portal_my_rfq_bid" name="My RFQ Bid">
+        <t t-call="portal.portal_layout">
+            <t t-set="additional_title" t-value="bid.rfq_id.display_name"/>
+
+            <t t-if="form_success">
+                <div class="alert alert-success mb-3" role="alert">
+                    Thanks — your bid was submitted.
+                </div>
+            </t>
+            <t t-if="form_error">
+                <div class="alert alert-danger mb-3" role="alert">
+                    <strong>Submission rejected:</strong>
+                    <span t-out="form_error"/>
+                </div>
+            </t>
+
+            <div class="row mb-4">
+                <div class="col-12 col-md-8">
+                    <h3 t-out="bid.rfq_id.title or bid.rfq_id.display_name"/>
+                    <p class="text-muted small">
+                        <span>RFQ </span><strong t-out="bid.rfq_id.name"/>
+                        <t t-if="bid.rfq_id.due_date">
+                            &amp;mdash;
+                            <span>Bids due </span>
+                            <span t-field="bid.rfq_id.due_date" t-options="{'widget': 'date'}"/>
+                        </t>
+                    </p>
+                </div>
+                <div class="col-12 col-md-4 text-md-end">
+                    <a href="/my/rfq-bids" class="btn btn-outline-secondary btn-sm">
+                        &amp;larr; All RFQ Bids
+                    </a>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Item being sourced</h5>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-3">Part Number</dt>
+                        <dd class="col-sm-9">
+                            <span t-out="item.part_number or item.display_name"/>
+                        </dd>
+                        <dt class="col-sm-3">Description</dt>
+                        <dd class="col-sm-9">
+                            <span t-out="item.name"/>
+                        </dd>
+                        <dt class="col-sm-3">Quantity</dt>
+                        <dd class="col-sm-9">
+                            <span t-out="line.qty"/>
+                        </dd>
+                        <dt class="col-sm-3">Need By</dt>
+                        <dd class="col-sm-9">
+                            <span t-field="line.target_date" t-options="{'widget': 'date'}"/>
+                        </dd>
+                        <t t-if="line.spec_notes">
+                            <dt class="col-sm-3">Spec Notes</dt>
+                            <dd class="col-sm-9">
+                                <pre class="mb-0" style="white-space: pre-wrap;" t-out="line.spec_notes"/>
+                            </dd>
+                        </t>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Your bid</h5>
+
+                    <t t-if="not submit_open">
+                        <div class="alert alert-secondary" role="alert">
+                            This RFQ is in state <strong t-out="bid.rfq_state"/> and is no longer accepting bid updates.
+                            <t t-if="bid.is_awarded">Congratulations — your bid was awarded.</t>
+                        </div>
+                    </t>
+
+                    <form t-if="submit_open"
+                          t-att-action="'/my/rfq-bids/%s/submit' % bid.id"
+                          method="post">
+                        <input type="hidden" name="csrf_token"
+                               t-att-value="request.csrf_token()"/>
+                        <t t-if="access_token">
+                            <input type="hidden" name="access_token"
+                                   t-att-value="access_token"/>
+                        </t>
+
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="unit_price">Unit Price <span class="text-danger">*</span></label>
+                                <input type="number" step="0.0001" min="0"
+                                       class="form-control" id="unit_price"
+                                       name="unit_price"
+                                       t-att-value="bid.unit_price or ''"
+                                       required="required"/>
+                                <small class="form-text text-muted">
+                                    Currency:
+                                    <span t-out="bid.currency_id.name or 'company default'"/>
+                                </small>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="lead_time_days">Lead Time (days)</label>
+                                <input type="number" min="0" class="form-control"
+                                       id="lead_time_days" name="lead_time_days"
+                                       t-att-value="bid.lead_time_days or 0"/>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="moq">Minimum Order Qty</label>
+                                <input type="number" step="0.0001" min="0"
+                                       class="form-control" id="moq" name="moq"
+                                       t-att-value="bid.moq or 1"/>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="valid_until">Quote Valid Until</label>
+                                <input type="date" class="form-control"
+                                       id="valid_until" name="valid_until"
+                                       t-att-value="bid.valid_until and bid.valid_until.isoformat() or ''"/>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="vendor_part_number">Your Part Number</label>
+                                <input type="text" class="form-control"
+                                       id="vendor_part_number" name="vendor_part_number"
+                                       t-att-value="bid.vendor_part_number or ''"/>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="comment">Notes for Southbrook</label>
+                                <textarea rows="3" class="form-control"
+                                          id="comment" name="comment"
+                                          t-out="bid.comment or ''"/>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 d-flex justify-content-end gap-2">
+                            <a href="/my/rfq-bids" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Submit Bid</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>
