@@ -65,8 +65,7 @@
             <xpath expr="//templates" position="before">
                 <field name="pg_is_on_superseded_rev"/>
             </xpath>
-            <xpath expr="//div[hasclass('o_kanban_record_title')]"
-                   position="after">
+            <xpath expr="//footer" position="before">
                 <div t-if="record.pg_is_on_superseded_rev.raw_value"
                      class="badge text-bg-danger"
                      style="margin-top:2px;">
