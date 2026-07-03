@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Engineering Change Orders',
-    'version': '19.0.1.7.0',
+    'version': '19.0.1.8.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Engineering Change Order (ECO) workflow tying revisions to a '
                'governed change-board approval cycle',
@@ -78,6 +78,7 @@ Compatible with Odoo 19.0 Community Edition.
         'views/pg_eco_menus.xml',
         'views/pg_work_queue_views.xml',
         'wizard/views/eco_impact_wizard_view.xml',
+        'wizard/views/eco_reject_wizard_view.xml',
     ],
     'demo': [
         'demo/pg_eco_demo.xml',

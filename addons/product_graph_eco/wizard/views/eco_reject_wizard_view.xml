@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pg_eco_reject_wizard_form" model="ir.ui.view">
+        <field name="name">pg.eco.reject.wizard.form</field>
+        <field name="model">pg.eco.reject.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reject ECO">
+                <sheet>
+                    <group>
+                        <field name="eco_id" readonly="1"
+                               options="{'no_open': True, 'no_create': True}"/>
+                    </group>
+                    <group>
+                        <field name="reason" nolabel="1"
+                               placeholder="Explain why this ECO is being rejected. The reason is required and will be stored on the ECO for audit."/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_confirm_reject"
+                            string="Reject ECO"
+                            type="object"
+                            class="btn-danger"/>
+                    <button special="cancel"
+                            string="Cancel"
+                            class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_pg_eco_reject_wizard" model="ir.actions.act_window">
+        <field name="name">Reject ECO</field>
+        <field name="res_model">pg.eco.reject.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" eval="False"/>
+    </record>
+
+</odoo>

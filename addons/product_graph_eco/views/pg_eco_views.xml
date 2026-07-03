@@ -142,11 +142,17 @@
                             type="object" class="oe_highlight"
                             invisible="state != 'approval'"
                             groups="product_graph_base.group_pg_approver"/>
-                    <button name="action_reject" string="Reject"
-                            type="object" class="btn-danger"
+                    <!-- PG-XXX — Reject opens a wizard that collects the
+                         required rejection reason before calling
+                         action_reject(). The prior button used only a
+                         yes/no confirm dialog with no reason input, so
+                         clicking it always raised ValidationError. -->
+                    <button name="%(product_graph_eco.action_pg_eco_reject_wizard)d"
+                            string="Reject"
+                            type="action" class="btn-danger"
                             invisible="state != 'approval'"
                             groups="product_graph_base.group_pg_approver"
-                            confirm="Reject this ECO? A rejection reason is required."/>
+                            context="{'default_eco_id': id}"/>
                     <button name="action_release" string="Release"
                             type="object" class="oe_highlight"
                             invisible="state != 'implementation'"
