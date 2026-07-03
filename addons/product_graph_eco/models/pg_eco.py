@@ -209,6 +209,27 @@ class PgEco(models.Model):
     )
 
     # ──────────────────────────────────────────────────────────────────
+    # Constraints
+    # ──────────────────────────────────────────────────────────────────
+    @api.constrains('title')
+    def _check_title_not_blank(self):
+        """Reject empty/whitespace-only titles with a friendly error.
+
+        `title` is declared required=True at the field level, but v19's ORM
+        precheck lets a missing key on `create({})` fall through to the
+        Postgres NOT NULL constraint — the user then sees a raw
+        psycopg2.NotNullViolation instead of a clean ValidationError. This
+        catches the case cleanly and covers whitespace-only titles too.
+        """
+        for rec in self:
+            if not rec.title or not rec.title.strip():
+                raise ValidationError(_(
+                    "ECO title is required and cannot be blank. "
+                    "Please provide a short human-readable summary of "
+                    "the change."
+                ))
+
+    # ──────────────────────────────────────────────────────────────────
     # Compute / display
     # ──────────────────────────────────────────────────────────────────
     @api.depends('line_ids')
