@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Base',
-    'version': '19.0.1.8.0',
+    'version': '19.0.1.9.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Engineering item catalog, property templates, and security foundation for ProductGraph',
     'description': """

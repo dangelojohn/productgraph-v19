@@ -72,13 +72,18 @@
                             type="object" class="btn-primary"
                             invisible="not can_promote"
                             help="Advance to next valid state. Reuses normal gating."/>
+                    <!-- PG-164 — the specific-state buttons collapse the
+                         "button soup" the review flagged: they're redundant
+                         with Promote when can_promote is True. They stay
+                         visible as an advanced-override path only when
+                         Promote is blocked for some other reason. -->
                     <button name="action_to_prototype" string="To Prototype"
                             type="object" class="oe_highlight"
-                            invisible="state != 'concept'"
+                            invisible="state != 'concept' or can_promote"
                             groups="product_graph_base.group_pg_engineer"/>
                     <button name="action_to_engineering" string="To Engineering"
                             type="object" class="oe_highlight"
-                            invisible="state not in ('concept','prototype')"
+                            invisible="state not in ('concept','prototype') or can_promote"
                             groups="product_graph_base.group_pg_engineer"/>
                     <button name="action_force_release" string="Force Release"
                             type="object" class="btn-danger"
