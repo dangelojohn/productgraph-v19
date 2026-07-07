@@ -421,6 +421,61 @@ class PgItem(models.Model):
         return [s[0] for s in ITEM_STATES]
 
     # ═════════════════════════════════════════════════════════════════════════
+    # Defaults (PG-163 — reduce mandatory item-create clicks)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    @api.model
+    def default_get(self, fields_list):
+        """Pre-fill category_id — the only required field with no default.
+
+        PG-163: the item-create click audit found category_id (required, no
+        default) forces a dropdown-open + search + select on every new item.
+        Every other required field already auto-fills (part_number sequences,
+        item_type='part', uom/state/company defaulted). We resolve a sensible
+        default so the common case is type-name-and-save:
+
+          1. an explicit context default (default_category_id) wins — untouched;
+          2. else a company-wide default via config param
+             `productgraph.default_item_category_id` (admin-set, optional);
+          3. else the current user's most-recently-created item's category
+             ("sticky" default — the big win when entering a batch of like items).
+
+        All lookups are best-effort and never raise: a missing/inaccessible
+        category simply leaves the field blank and the required= constraint
+        still applies.
+        """
+        defaults = super().default_get(fields_list)
+        if 'category_id' in fields_list and not defaults.get('category_id') \
+                and not self.env.context.get('default_category_id'):
+            category_id = self._pg_resolve_default_category()
+            if category_id:
+                defaults['category_id'] = category_id
+        return defaults
+
+    @api.model
+    def _pg_resolve_default_category(self):
+        """Return a category id for the create default, or False. Never raises."""
+        # (2) company-wide admin default
+        param = self.env['ir.config_parameter'].sudo().get_param(
+            'productgraph.default_item_category_id'
+        )
+        if param:
+            try:
+                cat = self.env['pg.category'].browse(int(param)).exists()
+                if cat:
+                    return cat.id
+            except (ValueError, TypeError):
+                pass
+        # (3) this user's most-recently-created item's category
+        last = self.search(
+            [('create_uid', '=', self.env.uid),
+             ('company_id', '=', self.env.company.id),
+             ('category_id', '!=', False)],
+            order='create_date desc, id desc', limit=1,
+        )
+        return last.category_id.id if last else False
+
+    # ═════════════════════════════════════════════════════════════════════════
     # ORM overrides
     # ═════════════════════════════════════════════════════════════════════════
 
