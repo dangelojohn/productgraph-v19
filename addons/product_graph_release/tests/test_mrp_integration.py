@@ -10,6 +10,8 @@ from unittest.mock import patch
 from odoo.exceptions import UserError
 from odoo.tests.common import TransactionCase, tagged
 
+from odoo.addons.product_graph_release.models.pg_release import RELEASE_LOCK_NAMESPACE
+
 
 @tagged('post_install', '-at_install', 'product_graph')
 class TestMrpIntegration(TransactionCase):
@@ -129,6 +131,55 @@ class TestMrpIntegration(TransactionCase):
         # And rel2 should still be pending (idempotency check fires before
         # the state flip to 'executing').
         self.assertEqual(rel2.state, 'pending')
+
+    def test_completed_release_state_regression_via_raw_sql_still_detected(self):
+        """B6.3 Layer 2 — _check_idempotency must key on mrp_bom_id, not
+        just state, so a completed release whose `state` column is
+        tampered with directly (bypassing every ORM guard, including the
+        mixin's unconditional _check_transition_allowed() from B6.1) still
+        surfaces as a prior release. Without this, a duplicate mrp.bom
+        could be created for the same (ebom, revision) pair — a direct
+        violation of R1 ('single canonical release per revision')."""
+        asm, asm_rev = self._release_item('AsmT3b', 'assembly')
+        comp, _ = self._release_item('CompT3b')
+        ebom = self._build_and_release_ebom(asm, asm_rev, [(comp, 1.0)])
+        rel1 = self._release(ebom, reason='First.')
+        self.assertEqual(rel1.state, 'completed')
+        self.assertTrue(rel1.mrp_bom_id)
+        tmpl_id = rel1.product_id.product_tmpl_id.id
+        bom_count_before = self.env['mrp.bom'].search_count([
+            ('product_tmpl_id', '=', tmpl_id),
+        ])
+
+        # Simulate a state regression that bypasses the ORM (and therefore
+        # the mixin's write() guard) entirely — a raw SQL tamper, or a
+        # stand-in for a future regression of the LIFECYCLE_MUTABLE_LOCKED
+        # allowlist. mrp_bom_id is untouched, exactly as it would be in a
+        # real tamper (only `state` regresses).
+        self.env.cr.execute(
+            "UPDATE pg_release SET state = 'pending' WHERE id = %s",
+            (rel1.id,),
+        )
+        rel1.invalidate_recordset()
+        self.assertEqual(rel1.state, 'pending')
+        self.assertTrue(rel1.mrp_bom_id, 'mrp_bom_id must survive the tamper')
+
+        rel2 = self.env['pg.release'].create({
+            'ebom_id': ebom.id,
+            'release_reason': 'Duplicate attempt after tamper.',
+        })
+        with self.assertRaises(UserError):
+            rel2.action_execute_release()
+        self.assertEqual(rel2.state, 'pending')
+
+        bom_count_after = self.env['mrp.bom'].search_count([
+            ('product_tmpl_id', '=', tmpl_id),
+        ])
+        self.assertEqual(
+            bom_count_after, bom_count_before,
+            'no second mrp.bom may be created for an already-released '
+            '(ebom, revision) pair, even after a state tamper',
+        )
 
     def test_release_atomic_rollback(self):
         asm, asm_rev = self._release_item('AsmT4', 'assembly')
@@ -275,3 +326,157 @@ class TestMrpIntegration(TransactionCase):
             ('to_state', '=', 'failed'),
         ])
         self.assertEqual(len(audit), 1)
+
+    # ───────────────────────────────────────────────────────────────────────
+    # PG A6.1 — advisory lock + partial UNIQUE backstop
+    # ───────────────────────────────────────────────────────────────────────
+
+    def test_release_concurrent_race_partial_unique_catches_dup(self):
+        """Even with the app-level idempotency check bypassed (simulating
+        two transactions racing past _check_idempotency under READ
+        COMMITTED), the partial UNIQUE index on
+        pg_release(ebom_id, revision_id) WHERE state='completed' refuses
+        the second 'completed' write, and the inner savepoint unwinds
+        cleanly — no orphan mrp.bom / mrp.bom.line rows survive."""
+        asm, asm_rev = self._release_item('AsmRace1', 'assembly')
+        comp, _ = self._release_item('CompRace1')
+        ebom = self._build_and_release_ebom(asm, asm_rev, [(comp, 1.0)])
+
+        rel1 = self.env['pg.release'].create({
+            'ebom_id': ebom.id,
+            'release_reason': 'Racer 1.',
+        })
+        rel2 = self.env['pg.release'].create({
+            'ebom_id': ebom.id,
+            'release_reason': 'Racer 2.',
+        })
+
+        with patch.object(type(rel1), '_check_idempotency', return_value=None):
+            rel1.action_execute_release()
+            self.assertEqual(rel1.state, 'completed')
+
+            # Catch by hand — see the atomic-rollback tests above for why
+            # assertRaises' outer savepoint would be the wrong tool here.
+            raised = None
+            try:
+                rel2.action_execute_release()
+            except Exception as exc:  # psycopg2 UniqueViolation, re-raised by ORM
+                raised = exc
+
+        self.assertIsNotNone(
+            raised, 'second racer must raise on the partial UNIQUE index',
+        )
+        self.assertIn('pg_release_completed_ebom_rev_uniq_idx', str(raised))
+
+        rel2.invalidate_recordset()
+        self.assertNotEqual(rel2.state, 'completed')
+        self.assertEqual(
+            self.env['mrp.bom'].search_count([('pg_release_id', '=', rel2.id)]),
+            0,
+            'rel2 savepoint must have rolled back its mrp.bom creation',
+        )
+        self.assertEqual(len(rel2.line_ids), 0)
+
+    def test_release_advisory_lock_acquired(self):
+        """The advisory lock must be acquired before both the idempotency
+        search and the state='executing' write."""
+        asm, asm_rev = self._release_item('AsmLock1', 'assembly')
+        comp, _ = self._release_item('CompLock1')
+        ebom = self._build_and_release_ebom(asm, asm_rev, [(comp, 1.0)])
+        rel = self.env['pg.release'].create({
+            'ebom_id': ebom.id,
+            'release_reason': 'Lock ordering check.',
+        })
+
+        events = []
+        original_execute = self.env.cr.execute
+
+        def spy_execute(query, *args, **kwargs):
+            if query and 'pg_advisory_xact_lock' in query:
+                params = args[0] if args else kwargs.get('params')
+                events.append(('lock', params))
+            return original_execute(query, *args, **kwargs)
+
+        original_check = type(rel)._check_idempotency
+
+        def spy_check(self_, *args, **kwargs):
+            events.append(('check_idempotency', None))
+            return original_check(self_, *args, **kwargs)
+
+        original_write = type(rel).write
+
+        def spy_write(self_, vals):
+            if vals.get('state') == 'executing':
+                events.append(('write_executing', None))
+            return original_write(self_, vals)
+
+        with patch.object(self.env.cr, 'execute', side_effect=spy_execute), \
+                patch.object(type(rel), '_check_idempotency', spy_check), \
+                patch.object(type(rel), 'write', spy_write):
+            rel.action_execute_release()
+
+        kinds = [e[0] for e in events]
+        self.assertIn('lock', kinds)
+        self.assertIn('check_idempotency', kinds)
+        self.assertIn('write_executing', kinds)
+        self.assertLess(
+            kinds.index('lock'), kinds.index('check_idempotency'),
+            'advisory lock must be acquired before _check_idempotency',
+        )
+        self.assertLess(
+            kinds.index('lock'), kinds.index('write_executing'),
+            "advisory lock must be acquired before the state='executing' write",
+        )
+        lock_params = events[kinds.index('lock')][1]
+        self.assertEqual(lock_params, (RELEASE_LOCK_NAMESPACE, rel.revision_id.id))
+
+    def test_release_lock_key_uses_revision_id_not_ebom_id(self):
+        """Regression guard: the advisory lock key must be revision_id, not
+        ebom_id, so a Supersede release (new revision) never contends with
+        the prior revision's lock."""
+        asm, asm_rev = self._release_item('AsmLockKey1', 'assembly')
+        comp, _ = self._release_item('CompLockKey1')
+        ebom1 = self._build_and_release_ebom(asm, asm_rev, [(comp, 1.0)])
+        self._release(ebom1, reason='v1')
+
+        rev_b = self._new_revision(asm, 'B')
+        ebom2 = self._build_and_release_ebom(asm, rev_b, [(comp, 2.0)])
+        rel2 = self.env['pg.release'].create({
+            'ebom_id': ebom2.id,
+            'release_reason': 'v2 supersede.',
+        })
+
+        seen_keys = []
+        original_execute = self.env.cr.execute
+
+        def spy(query, *args, **kwargs):
+            if query and 'pg_advisory_xact_lock' in query:
+                params = args[0] if args else kwargs.get('params')
+                seen_keys.append(params)
+            return original_execute(query, *args, **kwargs)
+
+        with patch.object(self.env.cr, 'execute', side_effect=spy):
+            rel2.action_execute_release()
+
+        self.assertEqual(rel2.state, 'completed')
+        self.assertEqual(seen_keys[-1], (RELEASE_LOCK_NAMESPACE, rev_b.id))
+        self.assertNotEqual(seen_keys[-1][1], ebom2.id)
+        self.assertNotEqual(seen_keys[-1][1], asm_rev.id)
+
+    def test_pg_release_init_creates_partial_unique_index(self):
+        """PgRelease.init() must create the partial UNIQUE index that backs
+        the (ebom_id, revision_id, state='completed') invariant."""
+        self.env.cr.execute("""
+            SELECT indexdef FROM pg_indexes
+            WHERE tablename = 'pg_release'
+              AND indexname = 'pg_release_completed_ebom_rev_uniq_idx'
+        """)
+        row = self.env.cr.fetchone()
+        self.assertTrue(
+            row, 'pg_release_completed_ebom_rev_uniq_idx must exist after module init()',
+        )
+        indexdef = row[0].replace('"', '')
+        self.assertIn('UNIQUE', indexdef.upper())
+        self.assertIn('ebom_id', indexdef)
+        self.assertIn('revision_id', indexdef)
+        self.assertIn("state = 'completed'", indexdef)

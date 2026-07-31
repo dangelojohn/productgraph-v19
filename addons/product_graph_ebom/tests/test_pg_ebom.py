@@ -97,3 +97,21 @@ class TestPgEbom(TransactionCase):
             ebom.write({'ebom_type': 'prototype'})
         with self.assertRaises(UserError):
             ebom.ebom_line_ids[0].write({'product_qty': 9.0})
+
+    def test_released_ebom_blocks_raw_state_regression(self):
+        # B6.1 — 'state' is inside LIFECYCLE_MUTABLE_LOCKED (ALLOWLIST mode)
+        # so a raw write({'state': 'draft'}) on a released EBOM used to
+        # slip through untouched. The mixin's unconditional
+        # _check_transition_allowed() guard must now block it.
+        asm, asm_rev = self._make_released_item(item_type='assembly', name='Asm3')
+        comp, _ = self._make_released_item(item_type='part', name='Comp3')
+        ebom = self.env['pg.ebom'].create({
+            'root_item_id': asm.id,
+            'revision_id': asm_rev.id,
+            'ebom_line_ids': [(0, 0, {'pg_item_id': comp.id, 'product_qty': 1.0})],
+        })
+        ebom.action_submit_for_review()
+        ebom.action_release()
+        with self.assertRaises(UserError):
+            ebom.write({'state': 'draft'})
+        self.assertEqual(ebom.state, 'released')

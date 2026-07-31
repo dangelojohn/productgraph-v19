@@ -190,6 +190,37 @@ class PgEbom(models.Model):
         return super().create(vals_list)
 
     # write() — immutability enforcement provided by pg.lifecycle.mixin.
+    # Additive (not a replacement): 'active' sits in LIFECYCLE_MUTABLE_LOCKED,
+    # so archiving/unarchiving a released EBOM is a normal write the mixin's
+    # guard allows through — but nothing downstream ever learns that active
+    # changed. pg.ebom.closure rows are only otherwise touched by
+    # action_release(), so an archived-but-released EBOM would silently keep
+    # feeding where-used / BOM-explosion queries. Keep closure in sync here.
+    def write(self, vals):
+        if 'active' not in vals:
+            return super().write(vals)
+
+        new_active = bool(vals['active'])
+        # Snapshot BEFORE the write lands: only records that are currently
+        # 'released' AND whose active flag is actually flipping need closure
+        # maintenance. A no-op write (e.g. mass "Set Active" re-applying
+        # active=True to already-active records) must not rebuild anything.
+        to_clear = self.filtered(
+            lambda r: r.state == 'released' and r.active and not new_active
+        )
+        to_rebuild = self.filtered(
+            lambda r: r.state == 'released' and not r.active and new_active
+        )
+
+        result = super().write(vals)
+
+        Closure = self.env['pg.ebom.closure']
+        for rec in to_clear:
+            Closure._clear_for_ebom(rec)
+        for rec in to_rebuild:
+            Closure._build_for_ebom(rec)
+
+        return result
 
     def unlink(self):
         for rec in self:

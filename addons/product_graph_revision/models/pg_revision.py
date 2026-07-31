@@ -420,6 +420,53 @@ class PgRevision(models.Model):
     # write() — immutability enforcement (allowlist on locked states +
     # bypass-only field guard) provided by pg.lifecycle.mixin.
 
+    def write(self, vals):
+        # B6.5 — 'active' is inside LIFECYCLE_MUTABLE_LOCKED so archiving a
+        # revision is always allowed by the mixin's immutability guard,
+        # regardless of state. That's correct for the lifecycle machine, but
+        # it leaves a cross-model gap: archiving hides the revision from the
+        # default (active=True) domains used throughout the ECO flow
+        # (release-readiness checks, the revision picker), silently
+        # stranding an in-flight ECO with an invisible source/target
+        # revision. Guard the archive path specifically; unarchive
+        # (active=True) is always safe and left untouched.
+        if vals.get('active') is False:
+            self._check_no_inflight_eco_references()
+        return super().write(vals)
+
+    def _check_no_inflight_eco_references(self):
+        """Raise if any revision in self is referenced (as from_revision_id
+        or to_revision_id) by a pg.eco.line whose parent ECO has not yet
+        reached a terminal state (released / rejected).
+
+        Defensive: `pg.eco.line` may not be installed — product_graph_eco is
+        an optional sibling addon. Mirrors the env.get() guard already used
+        by _propagate_release_to_eco / _warn_draft_child_eboms above, and
+        keeps the module-boundary rule intact (revision never imports eco).
+        sudo() because the user archiving the revision may not have direct
+        read access to every ECO that references it.
+        """
+        EcoLine = self.env.get('pg.eco.line')
+        if EcoLine is None:
+            return
+        EcoLine = self.env['pg.eco.line'].sudo()
+        for rec in self:
+            blocking_line = EcoLine.search([
+                '|',
+                ('from_revision_id', '=', rec.id),
+                ('to_revision_id', '=', rec.id),
+                ('eco_state', 'not in', ['released', 'rejected']),
+            ], limit=1)
+            if blocking_line:
+                raise UserError(_(
+                    "Cannot archive revision %(name)s — it is referenced by "
+                    "in-flight ECO %(eco)s (state: %(state)s). Resolve or "
+                    "close that ECO before archiving this revision.",
+                    name=rec.display_name,
+                    eco=blocking_line.eco_id.display_name,
+                    state=blocking_line.eco_state,
+                ))
+
     def unlink(self):
         for rec in self:
             if rec.state not in ('draft', 'obsolete'):
@@ -683,6 +730,25 @@ class PgRevision(models.Model):
                     "is set. Pick the released successor first.",
                     name=rec.display_name,
                 ))
+            # B6.8 — TOCTOU guard. Without a lock, a concurrent transaction
+            # (e.g. another action_supersede/action_obsolete call) could flip
+            # the successor's state between the read below and our write,
+            # leaving this revision superseded while pointing at a successor
+            # that is no longer 'released'. Take a row-level lock on both
+            # this revision and its successor (ascending id order keeps lock
+            # acquisition consistent across concurrent calls and avoids
+            # introducing new deadlock risk) before reading the successor's
+            # state, then drop the ORM cache for that field so the check
+            # below reads the freshly-locked row rather than a stale cached
+            # value. A concurrent transaction attempting to change the
+            # successor's state blocks on FOR UPDATE until this transaction
+            # commits or rolls back, closing the race window.
+            lock_ids = tuple(sorted({rec.id, rec.successor_revision_id.id}))
+            self.env.cr.execute(
+                "SELECT id FROM pg_revision WHERE id IN %s FOR UPDATE",
+                (lock_ids,),
+            )
+            (rec | rec.successor_revision_id).invalidate_recordset(['state'])
             if rec.successor_revision_id.state != 'released':
                 raise UserError(_(
                     "Successor revision %(succ)s must be Released before "

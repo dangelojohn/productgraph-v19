@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Revision Control',
-    'version': '19.0.1.7.0',
+    'version': '19.0.1.8.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Revision lifecycle, property values, and versioned engineering documents',
     'description': """

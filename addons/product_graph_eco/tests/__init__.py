@@ -7,3 +7,5 @@ from . import test_impact_explode
 from . import test_sla
 from . import test_work_queue
 from . import test_promote_and_express
+from . import test_revision_archive_guard
+from . import test_pg_eco_row_lock

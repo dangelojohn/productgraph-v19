@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="0">
+
+    <!-- B8.4 — hourly sweep of expired pg.api.rate.limit windows. The
+         counter table is written on every bearer/public API request, so
+         it is kept small by pruning anything older than
+         PgApiRateLimit.PRUNE_AFTER_SECONDS (10 minutes) rather than
+         relying on per-request cleanup. -->
+    <record id="ir_cron_pg_api_prune_rate_limit" model="ir.cron">
+        <field name="name">ProductGraph API: Prune expired rate-limit windows</field>
+        <field name="model_id" ref="model_pg_api_rate_limit"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_prune_expired()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+
+</odoo>

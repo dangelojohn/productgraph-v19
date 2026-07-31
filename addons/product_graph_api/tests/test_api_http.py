@@ -34,6 +34,7 @@ membership at the controller level: ``group_pg_engineer`` for writes,
 import json
 import logging
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 from odoo.tests.common import HttpCase, tagged
 
@@ -524,3 +525,117 @@ class TestProductGraphApiHttp(HttpCase):
         resp = self._get(f'{self.PG_BASE}/items', api_key=self.viewer_api_key)
         self.assertEqual(resp.status_code, 200)
         self.assertIn('application/json', resp.headers.get('Content-Type', ''))
+
+    # ──────────────────────────────────────────────────────────────────────
+    # RATE LIMITING (B8.4) — shared _safe wrapper, Postgres-backed
+    # fixed-window counter (pg.api.rate.limit).
+    #
+    # Each test lowers the config-parameter cap to a small number so it
+    # doesn't need dozens of HTTP round trips to trip the limiter, and
+    # clears any pre-existing counter rows first so results aren't
+    # sensitive to how many /items calls earlier tests in this class made.
+    # ir.config_parameter writes and pg.api.rate.limit rows made inside a
+    # test method are rolled back with the rest of that test's savepoint,
+    # so this never leaks into sibling tests.
+    # ──────────────────────────────────────────────────────────────────────
+    def _reset_rate_limit_counters(self):
+        self.env['pg.api.rate.limit'].sudo().search([]).unlink()
+
+    def _set_rate_limit(self, limit):
+        self.env['ir.config_parameter'].sudo().set_param(
+            'productgraph.api_rate_limit_per_minute', str(limit))
+
+    def test_rate_limit_first_hit_does_not_error_with_empty_counter_table(self):
+        """First request for a fresh (identity, route) pair must succeed —
+        the upsert's INSERT branch has to work with zero prior rows."""
+        self._reset_rate_limit_counters()
+        self._set_rate_limit(50)
+        resp = self._get(f'{self.PG_BASE}/items', api_key=self.viewer_api_key)
+        self.assertEqual(resp.status_code, 200, f'Body: {resp.text[:500]}')
+
+    def test_rate_limit_returns_429_after_cap_on_get(self):
+        """A cheap GET route (list_items) starts returning 429 once a
+        single bearer key exceeds its configured per-minute cap; requests
+        under the cap keep succeeding."""
+        self._reset_rate_limit_counters()
+        self._set_rate_limit(3)
+        statuses = [
+            self._get(f'{self.PG_BASE}/items', api_key=self.viewer_api_key).status_code
+            for _i in range(3)
+        ]
+        self.assertEqual(statuses, [200, 200, 200], f'Under-cap requests: {statuses}')
+        over_cap = self._get(f'{self.PG_BASE}/items', api_key=self.viewer_api_key)
+        self.assertEqual(over_cap.status_code, 429, f'Body: {over_cap.text[:500]}')
+        body = over_cap.json()
+        self.assertEqual(body['error']['code'], 'rate_limited')
+
+    def test_rate_limit_returns_429_on_mutating_route_without_partial_write(self):
+        """POST /items (create_item) is throttled by the same shared check.
+        Once the cap trips, the rejected call must NOT have created a
+        pg.item — the limiter runs before the handler."""
+        self._reset_rate_limit_counters()
+        self._set_rate_limit(1)
+        first = self._post_json(
+            f'{self.PG_BASE}/items',
+            payload={'name': 'RL first create', 'item_type': 'part',
+                     'category_id': self.cat.id},
+            api_key=self.engineer_api_key,
+        )
+        self.assertEqual(first.status_code, 200, f'Body: {first.text[:500]}')
+
+        blocked_name = 'RL second create - must not exist'
+        second = self._post_json(
+            f'{self.PG_BASE}/items',
+            payload={'name': blocked_name, 'item_type': 'part',
+                     'category_id': self.cat.id},
+            api_key=self.engineer_api_key,
+        )
+        self.assertEqual(second.status_code, 429, f'Body: {second.text[:500]}')
+        self.assertEqual(
+            self.env['pg.item'].search_count([('name', '=', blocked_name)]), 0,
+            'Throttled create_item call must not have written a pg.item record',
+        )
+
+    def test_rate_limit_independent_per_api_key(self):
+        """Two different users' bearer keys are throttled independently —
+        one user tripping the cap must not affect another user's quota on
+        the same route."""
+        self._reset_rate_limit_counters()
+        self._set_rate_limit(1)
+        viewer_first = self._get(f'{self.PG_BASE}/items', api_key=self.viewer_api_key)
+        self.assertEqual(viewer_first.status_code, 200)
+        viewer_second = self._get(f'{self.PG_BASE}/items', api_key=self.viewer_api_key)
+        self.assertEqual(viewer_second.status_code, 429)
+
+        # A different key belonging to a different user is still fresh.
+        approver_first = self._get(f'{self.PG_BASE}/items', api_key=self.approver_api_key)
+        self.assertEqual(approver_first.status_code, 200, f'Body: {approver_first.text[:500]}')
+
+    def test_rate_limit_disabled_when_cap_is_zero(self):
+        """Setting the cap to 0 disables throttling for that caller class —
+        the documented post-deploy tuning escape hatch (no code revert)."""
+        self._reset_rate_limit_counters()
+        self._set_rate_limit(0)
+        for _i in range(5):
+            resp = self._get(f'{self.PG_BASE}/items', api_key=self.viewer_api_key)
+            self.assertEqual(resp.status_code, 200)
+
+    def test_rate_limit_window_rollover_resets_counter(self):
+        """A caller who trips the cap in one fixed window is allowed again
+        once the window rolls over. Exercised at the model layer with a
+        mocked clock rather than sleeping 60 real seconds."""
+        Counter = self.env['pg.api.rate.limit'].sudo()
+        Counter.search([]).unlink()
+        base = 1_700_000_000  # arbitrary fixed epoch second
+        with patch(
+            'odoo.addons.product_graph_api.models.pg_api_rate_limit.time.time',
+            return_value=float(base),
+        ):
+            self.assertEqual(Counter._hit('uid:999999', 'test.route'), 1)
+            self.assertEqual(Counter._hit('uid:999999', 'test.route'), 2)
+        with patch(
+            'odoo.addons.product_graph_api.models.pg_api_rate_limit.time.time',
+            return_value=float(base + Counter.WINDOW_SECONDS),
+        ):
+            # New window — the counter starts over at 1, not 3.
+            self.assertEqual(Counter._hit('uid:999999', 'test.route'), 1)

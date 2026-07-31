@@ -84,7 +84,26 @@ class PgEcoLine(models.Model):
                 )
 
     # Released ECOs lock their lines too.
+    #
+    # B6.6 — row-lock the parent pg.eco record(s) FIRST, before reading
+    # eco_state below. Without this, a concurrent pg.eco.action_release()
+    # can read a pre-transition snapshot of the ECO at the same instant this
+    # write() reads eco_state as still non-released, and both transactions
+    # commit: the line gets mutated after/concurrently with release. Locking
+    # the parent row(s) serializes the two code paths on the same row.
+    #
+    # Lock order is always eco-before-line (mirrored in
+    # pg.eco.action_release(), which locks itself before touching any
+    # line). That ordering means this call can never deadlock against a
+    # concurrent release — including the internal write() this method's own
+    # related-field recompute (eco_state, store=True) triggers while
+    # action_release() is running: that nested call re-acquires the SAME
+    # eco row lock the outer action_release() already holds in the same
+    # transaction, which Postgres treats as a no-op.
     def write(self, vals):
+        eco_ids = tuple(sorted(set(self.mapped('eco_id').ids)))
+        if eco_ids:
+            self.env['pg.eco'].browse(eco_ids)._lock_for_update()
         if not self.env.context.get('_pg_eco_release_bypass'):
             for rec in self:
                 if rec.eco_state == 'released' and set(vals.keys()) - {'status', 'notes'}:

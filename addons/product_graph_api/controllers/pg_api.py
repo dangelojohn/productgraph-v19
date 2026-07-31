@@ -37,6 +37,16 @@ _logger = logging.getLogger(__name__)
 
 PG_BASE = '/api/v1/productgraph'
 
+# ─── Rate limiting (B8.4) ──────────────────────────────────────────────────
+# Defaults, overridable via ir.config_parameter (see _rate_limit_check).
+# Bearer callers get the tighter default; the public /health route (and any
+# other auth='public' route, present or future) gets a looser one since it's
+# meant to be hammered by uptime monitors.
+DEFAULT_RATE_LIMIT_PER_MINUTE = 120
+DEFAULT_RATE_LIMIT_PER_MINUTE_PUBLIC = 300
+RATE_LIMIT_PARAM = 'productgraph.api_rate_limit_per_minute'
+RATE_LIMIT_PARAM_PUBLIC = 'productgraph.api_rate_limit_per_minute_public'
+
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -61,10 +71,76 @@ def _check_group(xml_id):
     return None
 
 
+def _rate_limit_identity():
+    """Bucket key for the caller.
+
+    Bearer auth resolves ``request.env.user`` to the API key's *owner*, but
+    ``res.users.apikeys._check_credentials`` only returns the uid — not the
+    specific apikeys row — so per-key granularity isn't available post-auth
+    without re-parsing and re-verifying the raw token (duplicating the auth
+    check on every request). We key on the authenticated user id instead:
+    distinct users (and therefore distinct keys belonging to different
+    people/services) are always throttled independently; multiple keys
+    issued to the SAME user share one bucket.
+
+    Unauthenticated callers (only ``/health``, which is ``auth='public'``)
+    are keyed by remote IP so they can't dodge the cap by omitting a token.
+    """
+    if request.env.uid and not request.env.user._is_public():
+        return f'uid:{request.env.uid}'
+    ip = request.httprequest.environ.get('REMOTE_ADDR') or 'unknown'
+    return f'ip:{ip}'
+
+
+def _rate_limit_check(handler):
+    """Fixed-window (60s) per-caller-per-route rate limit, shared across
+    all Odoo worker processes via a Postgres upsert on ``pg.api.rate.limit``
+    — an in-memory counter would only be visible within the one prefork
+    worker that happened to handle the request.
+
+    Returns an ``_err`` Response (HTTP 429) if the configured cap has been
+    exceeded for the current window, else ``None``.
+    """
+    is_public = not request.env.uid or request.env.user._is_public()
+    param, default = (
+        (RATE_LIMIT_PARAM_PUBLIC, DEFAULT_RATE_LIMIT_PER_MINUTE_PUBLIC)
+        if is_public else
+        (RATE_LIMIT_PARAM, DEFAULT_RATE_LIMIT_PER_MINUTE)
+    )
+    ICP = request.env['ir.config_parameter'].sudo()
+    try:
+        limit = int(ICP.get_param(param, default))
+    except (TypeError, ValueError):
+        limit = default
+    if limit <= 0:
+        # 0 (or negative) is the documented escape hatch to disable
+        # throttling for this caller class without a code revert.
+        return None
+    route = f'{handler.__module__}.{handler.__qualname__}'
+    identity = _rate_limit_identity()
+    count = request.env['pg.api.rate.limit'].sudo()._hit(identity, route)
+    if count > limit:
+        _logger.warning(
+            'ProductGraph API rate limit exceeded: identity=%s route=%s limit=%s/min',
+            identity, route, limit,
+        )
+        return _err(
+            'rate_limited',
+            f'Rate limit exceeded ({limit} requests/min). Try again shortly.',
+            status=429,
+            extra={'limit_per_minute': limit},
+        )
+    return None
+
+
 def _safe(handler):
-    """Wrap a controller method to coerce known exceptions into JSON errors."""
+    """Wrap a controller method to enforce the shared rate limit and coerce
+    known exceptions into JSON errors."""
     def _wrap(self, *args, **kwargs):
         try:
+            limited = _rate_limit_check(handler)
+            if limited is not None:
+                return limited
             return handler(self, *args, **kwargs)
         except AccessError as e:
             return _err('access_denied', str(e), status=403)

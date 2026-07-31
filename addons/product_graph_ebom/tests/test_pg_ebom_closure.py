@@ -82,3 +82,64 @@ class TestPgEbomClosure(TransactionCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows.qty_chain, 15.0)
         self.assertEqual(rows.depth, 2)
+
+    # ─── B7.6 — archive/unarchive of a released EBOM keeps closure in sync ──
+
+    def test_archive_released_ebom_clears_closure(self):
+        asm, asm_rev = self._release_item('Asm', 'assembly')
+        a, _ = self._release_item('A')
+        ebom = self._release_ebom(asm, asm_rev, [(a, 2.0)])
+        Closure = self.env['pg.ebom.closure']
+        self.assertTrue(Closure.search([('ebom_id', '=', ebom.id)]))
+
+        ebom.write({'active': False})
+
+        self.assertFalse(Closure.search([('ebom_id', '=', ebom.id)]))
+        # The EBOM record itself is untouched otherwise — still released.
+        self.assertEqual(ebom.state, 'released')
+
+    def test_unarchive_released_ebom_rebuilds_closure(self):
+        asm, asm_rev = self._release_item('Asm', 'assembly')
+        a, _ = self._release_item('A')
+        b, _ = self._release_item('B')
+        ebom = self._release_ebom(asm, asm_rev, [(a, 2.0), (b, 4.0)])
+        Closure = self.env['pg.ebom.closure']
+        original_rows = Closure.search([('ebom_id', '=', ebom.id)])
+        original = {(r.descendant_id.id, r.depth): r.qty_chain for r in original_rows}
+
+        ebom.write({'active': False})
+        self.assertFalse(Closure.search([('ebom_id', '=', ebom.id)]))
+
+        ebom.write({'active': True})
+
+        rebuilt_rows = Closure.search([('ebom_id', '=', ebom.id)])
+        rebuilt = {(r.descendant_id.id, r.depth): r.qty_chain for r in rebuilt_rows}
+        self.assertEqual(rebuilt, original)
+
+    def test_archive_draft_ebom_no_closure_touch(self):
+        asm = self.env['pg.item'].create({
+            'name': 'AsmDraft',
+            'item_type': 'assembly',
+            'category_id': self.cat.id,
+        })
+        asm.action_to_engineering()
+        asm_rev = self.env['pg.revision'].create({
+            'item_id': asm.id,
+            'name': 'A',
+            'change_summary': 'Draft EBOM for archive no-op test.',
+        })
+        a, _ = self._release_item('ADraftChild')
+        ebom = self.env['pg.ebom'].create({
+            'root_item_id': asm.id,
+            'revision_id': asm_rev.id,
+            'ebom_line_ids': [(0, 0, {'pg_item_id': a.id, 'product_qty': 1.0})],
+        })
+        self.assertEqual(ebom.state, 'draft')
+        Closure = self.env['pg.ebom.closure']
+
+        # Should not raise and should not create any closure rows.
+        ebom.write({'active': False})
+        self.assertFalse(Closure.search([('ebom_id', '=', ebom.id)]))
+
+        ebom.write({'active': True})
+        self.assertFalse(Closure.search([('ebom_id', '=', ebom.id)]))

@@ -21,10 +21,14 @@ ECO_STATES = [
     ('rejected', 'Rejected'),
 ]
 
-# pg.eco transitions per Bible §5. This is informational for the lifecycle
-# mixin's _check_transition_allowed helper; the actual gate today is
-# self._check_transition(from_states, to_state, group_xmlid) which has a
-# different signature and bundles the group check inline.
+# pg.eco transitions per Bible §5. Also assigned below as
+# LIFECYCLE_TRANSITIONS — pg.lifecycle.mixin.write() (product_graph_base)
+# validates every raw write that touches 'state' against this exact map via
+# _check_transition_allowed(), so it is load-bearing, not merely
+# informational (Phase-C findings B6.1/B6.2 closed the gap where only the
+# action_* methods enforced it). self._check_transition(from_states,
+# to_state, group_xmlid) below remains the action-method-level gate — it
+# adds the group + precondition checks on top of the same transition table.
 _ECO_TRANSITIONS = {
     'draft':          ['analysis'],
     'analysis':       ['approval', 'draft'],
@@ -43,7 +47,23 @@ RELEASED_LOCKED_FIELDS = {
     'engineering_lead_id', 'approval_board_ids',
     'effective_date', 'target_release_date',
     'impact_summary', 'line_ids', 'requestor_id',
+    # B6.1 — belt-and-suspenders: name 'state' directly in the blocklist so
+    # this branch also blocks it independent of the unconditional
+    # _check_transition_allowed() guard in pg.lifecycle.mixin.write() (the
+    # primary fix for the released -> draft raw-write regression hole).
+    'state',
 }
+
+# B6.7 — single source of truth for "is this governed line's target
+# revision finished" across the three independently-written checks that
+# used to drift (action_release()'s validation gate, the can_promote UI
+# compute, and the auto-close cascade gate). pg.revision's lifecycle is
+# draft -> review -> released -> superseded -> obsolete (see
+# product_graph_revision/models/pg_revision.py): 'superseded' is strictly
+# FURTHER ALONG than 'released', not behind it, so a target revision that
+# was released and later superseded by a faster-moving follow-up change
+# still counts as finished for ECO-release purposes.
+_FINISHED_TARGET_REVISION_STATES = frozenset({'released', 'superseded'})
 
 
 class PgEco(models.Model):
@@ -284,7 +304,7 @@ class PgEco(models.Model):
                 )
                 unfinished = governed.filtered(
                     lambda l: not l.to_revision_id
-                    or l.to_revision_id.state not in ('released', 'superseded')
+                    or l.to_revision_id.state not in _FINISHED_TARGET_REVISION_STATES
                 )
                 if unfinished:
                     rec.promote_blocked_reason = _(
@@ -354,6 +374,32 @@ class PgEco(models.Model):
                     % (rec.display_name, rec.state)
                 )
         return super().unlink()
+
+    # ──────────────────────────────────────────────────────────────────
+    # B6.6 — Row-locking helper (release-vs-line-write race)
+    # ──────────────────────────────────────────────────────────────────
+    def _lock_for_update(self):
+        """Row-lock these pg.eco records (SELECT ... FOR UPDATE) so a
+        concurrent action_release() and a concurrent pg.eco.line.write()
+        checking eco_state can never both read a pre-transition snapshot
+        and commit inconsistent results.
+
+        Both call sites — action_release() below, and pg.eco.line.write()
+        — lock the pg_eco row(s) BEFORE touching or reading any
+        pg.eco.line state, so lock order is always eco-before-line. That
+        ordering is what keeps action_release()'s own write() (which
+        triggers a related-field recompute of eco_state on every
+        pg.eco.line row, store=True) from deadlocking against itself: the
+        nested lock request re-acquires a row this same transaction
+        already holds, which Postgres treats as a no-op.
+        """
+        ids = tuple(sorted(self.ids))
+        if not ids:
+            return
+        self.env.cr.execute(
+            'SELECT id FROM pg_eco WHERE id IN %s ORDER BY id FOR UPDATE',
+            (ids,),
+        )
 
     # ──────────────────────────────────────────────────────────────────
     # State machine — Bible §5
@@ -544,6 +590,11 @@ class PgEco(models.Model):
 
     def action_release(self):
         self._check_sod(_("release"))
+        # B6.6 — lock the eco row(s) BEFORE the unreleased-line validation
+        # and the state write below, so a concurrent pg.eco.line.write()
+        # (which locks the same row first, per its own docstring) can never
+        # race this check-then-act sequence.
+        self._lock_for_update()
         for rec in self:
             rec._check_transition(
                 ('implementation',), 'released', 'product_graph_base.group_pg_approver',
@@ -555,7 +606,8 @@ class PgEco(models.Model):
                 lambda l: l.change_kind in (
                     'revision_bump', 'property_change', 'bom_change')
                 and (not l.to_revision_id
-                     or l.to_revision_id.state != 'released')
+                     or l.to_revision_id.state
+                     not in _FINISHED_TARGET_REVISION_STATES)
             )
             if unreleased:
                 bad = ', '.join(unreleased.mapped(
@@ -697,7 +749,7 @@ class PgEco(models.Model):
                 continue
             unfinished = governed_lines.filtered(
                 lambda l: not l.to_revision_id
-                or l.to_revision_id.state not in ('released', 'superseded')
+                or l.to_revision_id.state not in _FINISHED_TARGET_REVISION_STATES
             )
             if unfinished:
                 continue

@@ -206,6 +206,27 @@ class LifecycleMixin(models.AbstractModel):
         if not self.LIFECYCLE_ENFORCE_WRITE:
             return super().write(vals)
 
+        # B6.1 — Unconditional state-transition guard. A raw
+        # write({'state': ...}) previously bypassed the state machine
+        # entirely: it isn't caught by the BLOCKLIST branch below (a
+        # vals dict of just {'state'} doesn't intersect a blocklist that
+        # historically omitted 'state' itself) and 'state' sits inside
+        # every ALLOWLIST branch's LIFECYCLE_MUTABLE_LOCKED by default, so
+        # a locked-state record could be walked to ANY other state —
+        # including back OUT of a terminal state — with zero group check,
+        # zero SoD check, zero audit log, zero chatter, zero email. This
+        # runs BEFORE the bypass/blocklist/allowlist branching below and,
+        # deliberately, even when the release-bypass context flag is set:
+        # every bypass-context write() call site in this codebase performs
+        # a legal single-hop transition (e.g. implementation->released),
+        # so this never fires on a legitimate path — it only closes the
+        # illegal-jump / regression hole.
+        target_state = vals.get('state')
+        if target_state is not None and self.LIFECYCLE_TRANSITIONS:
+            for rec in self:
+                if rec.state != target_state:
+                    rec._check_transition_allowed(target_state)
+
         bypass_key = self.LIFECYCLE_BYPASS_KEY
         bypass = bool(bypass_key) and self.env.context.get(bypass_key)
 

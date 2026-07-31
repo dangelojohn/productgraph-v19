@@ -2,6 +2,7 @@
 import json
 import logging
 import traceback
+import zlib
 from datetime import timedelta
 from typing import Any
 
@@ -11,6 +12,17 @@ from odoo.exceptions import UserError, ValidationError
 from ..connectors import CONNECTOR_REGISTRY, BaseCadConnector, CadDocument
 
 _logger = logging.getLogger(__name__)
+
+# Advisory-lock namespace for per-item CAD import serialization. ASCII
+# "pgca" (product graph CAD) → 0x70676361. Deliberately distinct from
+# product_graph_ebom.models.pg_ebom_closure.CLOSURE_LOCK_NAMESPACE
+# (0x70676573, "pges") so the two lock families never collide even though
+# both use pg_advisory_xact_lock(int4, int4) against the same Postgres
+# instance. Reserved per B9.9 to serialize concurrent _do_pull() writes
+# to the same pg.item (same part_number) — whether the collision is a
+# cron-vs-manual re-entry of ONE connector or two DIFFERENT connectors
+# (e.g. solidworks + onshape) both targeting the same part number.
+_CAD_LOCK_NAMESPACE = 0x70676361
 
 # pg.item.state values where the record is considered immutable and
 # CAD sync must NOT touch it. Mirrors product_graph_base.pg_item._MUTABLE_ON_RELEASED
@@ -31,6 +43,22 @@ _ALLOWED_DESCRIPTOR_KEYS = frozenset({
 })
 
 _REQUIRED_DESCRIPTOR_KEYS = frozenset({'part_number', 'name', 'item_type'})
+
+
+def _advisory_lock_key(text: str) -> int:
+    """Map an arbitrary string (a part_number) to the signed 32-bit
+    integer pg_advisory_xact_lock's second argument requires.
+
+    CRC32 gives us a deterministic, well-distributed 32-bit value without
+    pulling in a DB round-trip (e.g. hashtext()) just to compute a lock
+    key. Postgres's advisory-lock key argument is a signed int4, so values
+    at or above 2**31 are folded into the negative range — the sign
+    carries no meaning here, only bit-identity does.
+    """
+    value = zlib.crc32(text.encode('utf-8')) & 0xffffffff
+    if value >= 2 ** 31:
+        value -= 2 ** 32
+    return value
 
 
 def _selection_from_registry(_self=None):
@@ -246,6 +274,23 @@ class PgCadConnector(models.Model):
         whole run failed.
         """
         self.ensure_one()
+        # Cheap overlap guard: reject a second concurrent run for THIS
+        # connector before we even touch the driver. This is a coarse
+        # same-connector check (cron sweep landing on top of a manual
+        # "Sync Now" click, or two overlapping cron sweeps) — it does not
+        # cover two DIFFERENT connectors racing on the same part_number;
+        # that finer-grained case is closed by the per-item
+        # pg_advisory_xact_lock in _do_pull below. The cron caller
+        # (_cron_run_scheduled_syncs) already wraps action_sync_now() in
+        # a try/except that logs + chatter-posts, so raising here reads
+        # as "log and skip" from the cron's point of view.
+        if self.env['pg.cad.import'].search_count([
+            ('connector_id', '=', self.id),
+            ('state', '=', 'running'),
+        ]):
+            raise UserError(_(
+                "A CAD pull is already running for connector %s — wait "
+                "for it to finish before starting another.") % self.code)
         run = self.env['pg.cad.import'].create({
             'connector_id': self.id,
             'state': 'running',
@@ -391,6 +436,19 @@ class PgCadConnector(models.Model):
                 })
                 rejected_pns.add(getattr(doc, 'part_number', '') or '')
                 continue
+
+            # Serialize concurrent writers (same connector re-entered, a
+            # different connector, or a slow cron sweep overlapping a
+            # manual sync) that target the same part_number. This is an
+            # xact-scoped advisory lock: it auto-releases at the end of
+            # the current transaction (which covers pass-1 AND pass-2
+            # below for this doc, since both share the outer request
+            # transaction) and needs no stale-lock cleanup if the worker
+            # crashes mid-pull, unlike a session-scoped lock.
+            self.env.cr.execute(
+                "SELECT pg_advisory_xact_lock(%s, %s)",
+                (_CAD_LOCK_NAMESPACE, _advisory_lock_key(doc.part_number)),
+            )
 
             existing = Item.search(
                 [('part_number', '=', doc.part_number)], limit=1)

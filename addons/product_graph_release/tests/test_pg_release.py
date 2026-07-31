@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from unittest.mock import patch
+
 from odoo.exceptions import UserError
 from odoo.tests.common import TransactionCase, tagged
 
@@ -91,6 +93,55 @@ class TestPgRelease(TransactionCase):
         release.action_execute_release()
         with self.assertRaises(UserError):
             release.write({'release_reason': 'Mutated'})
+
+    def test_completed_release_blocks_raw_state_regression(self):
+        # B6.1 — 'state' is inside LIFECYCLE_MUTABLE_LOCKED (ALLOWLIST mode)
+        # so a raw write({'state': 'pending'}) on a completed release used
+        # to slip through untouched. The mixin's unconditional
+        # _check_transition_allowed() guard must now block it ('completed'
+        # has no outgoing transitions at all).
+        asm, asm_rev = self._release_item('Cab3b', 'assembly')
+        comp, _ = self._release_item('Hinge3b')
+        ebom = self._build_and_release_ebom(asm, asm_rev, [(comp, 1.0)])
+        release = self.env['pg.release'].create({
+            'ebom_id': ebom.id,
+            'release_reason': 'Test.',
+        })
+        release.action_execute_release()
+        with self.assertRaises(UserError):
+            release.write({'state': 'pending'})
+        self.assertEqual(release.state, 'completed')
+
+    def test_release_reset_to_pending_still_works_from_failed(self):
+        # B6.3 regression guard: removing 'state' from
+        # LIFECYCLE_MUTABLE_LOCKED must NOT affect action_reset_to_pending.
+        # 'failed' is not in LIFECYCLE_TERMINAL_STATES, so a 'failed'
+        # release is never in a locked state to begin with — the ALLOWLIST
+        # branch never even evaluates for it, regardless of what fields are
+        # in the allowlist.
+        asm, asm_rev = self._release_item('Cab3c', 'assembly')
+        comp, _ = self._release_item('Hinge3c')
+        ebom = self._build_and_release_ebom(asm, asm_rev, [(comp, 1.0)])
+        release = self.env['pg.release'].create({
+            'ebom_id': ebom.id,
+            'release_reason': 'Will fail mid-flight.',
+        })
+        raised = None
+        with patch.object(
+            type(release), '_create_mrp_bom',
+            side_effect=RuntimeError('boom from test'),
+        ):
+            try:
+                release.action_execute_release()
+            except RuntimeError as exc:
+                raised = exc
+        self.assertIsNotNone(raised)
+        release.invalidate_recordset()
+        self.assertEqual(release.state, 'failed')
+
+        release.action_reset_to_pending()
+        self.assertEqual(release.state, 'pending')
+        self.assertFalse(release.failure_reason)
 
     def test_mo_freeze_records_open_mos(self):
         # Release once to create mrp.bom, then create an MO, then release again.

@@ -47,6 +47,15 @@ _RELEASE_TRANSITIONS = {
     'failed':    ['pending'],   # action_reset_to_pending
 }
 
+# Advisory-lock namespace for action_execute_release serialization. ASCII
+# "pgrl" → 0x7067726c. Mirrors pg_ebom_closure.CLOSURE_LOCK_NAMESPACE
+# ("pges") for idiom consistency — see PG A6.1. Keyed on revision_id (not
+# ebom_id): the R1 duplicate invariant is per-(ebom, revision), ebom_id is
+# 1:many to revision over time (superseded EBOMs stick around), and the
+# real-world race is two Approvers hitting the SAME revision concurrently.
+# pg_advisory_xact_lock(int4, int4) requires signed-32-bit values.
+RELEASE_LOCK_NAMESPACE = 0x7067726c
+
 
 class PgRelease(models.Model):
     _name = 'pg.release'
@@ -58,8 +67,23 @@ class PgRelease(models.Model):
     LIFECYCLE_STATES = RELEASE_STATES
     LIFECYCLE_TRANSITIONS = _RELEASE_TRANSITIONS
     LIFECYCLE_BYPASS_KEY = '_pg_release_bypass'
+    # B6.3 Layer 1 — 'state' deliberately excluded. It used to sit in this
+    # ALLOWLIST, which meant a bare write({'state': ...}) on a 'completed'
+    # (locked) record was never blocked by the mixin's ALLOWLIST branch at
+    # all — it was implicitly always "allowed", regardless of whether the
+    # target state was a legal transition. The mixin's unconditional
+    # _check_transition_allowed() guard (see lifecycle_mixin.py, B6.1) now
+    # independently closes that hole for every state write, but 'state' is
+    # removed here too as defense-in-depth: with it gone, a bare write of
+    # {'state': 'completed'} to an already-completed record — a same-value
+    # no-op that the unconditional guard's `rec.state != target_state` check
+    # would skip — now also requires the bypass context, so this model has
+    # no allowlisted path back into a locked state under any circumstance.
+    # The internal completion write at Step 7 of action_execute_release()
+    # runs while the DB row is still 'executing' (not yet locked) AND passes
+    # LIFECYCLE_BYPASS_KEY, so it is unaffected either way.
     LIFECYCLE_MUTABLE_LOCKED = frozenset({
-        'state', 'active',
+        'active',
         'message_ids', 'message_follower_ids', 'activity_ids',
     })
     # Only 'completed' is the immutable state; 'failed' can be reset to
@@ -202,13 +226,53 @@ class PgRelease(models.Model):
                 ))
         return super().unlink()
 
+    def init(self):
+        """Belt-and-braces DB-level backstop for the (ebom_id, revision_id)
+        completed-release invariant that ``_acquire_release_lock`` enforces
+        at the application layer. A PARTIAL UNIQUE index — not a
+        ``models.Constraint`` (those don't support ``WHERE``) — refuses a
+        second 'completed' pg.release for the same (ebom, revision) pair
+        even if the advisory lock is ever bypassed (test harness,
+        split-brain, future refactor). Additive DDL only — Bible R2
+        compliant. Mirrors pg_ebom_closure.init()."""
+        cr = self.env.cr
+        cr.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS pg_release_completed_ebom_rev_uniq_idx
+            ON pg_release (ebom_id, revision_id)
+            WHERE state = 'completed';
+        """)
+
     # ═════════════════════════════════════════════════════════════════════════
     # THE release method — only place mrp.bom is created (Bible R1)
     # ═════════════════════════════════════════════════════════════════════════
 
+    def _acquire_release_lock(self, revision):
+        """Serialize action_execute_release across concurrent transactions
+        targeting the same revision.
+
+        Under READ COMMITTED, two Approvers racing to release the same
+        (ebom, revision) can both see ``_check_idempotency`` return "no
+        prior completed sibling" before either commits, and both would then
+        CREATE their own mrp.bom — breaking the R1 sole-writer contract.
+        A transaction-scoped Postgres advisory lock keyed on
+        (RELEASE_LOCK_NAMESPACE, revision.id) makes the second caller block
+        here until the first transaction commits or rolls back. On wake,
+        the second caller's subsequent ``_check_idempotency`` call sees the
+        now-committed prior release and raises a clean UserError instead of
+        racing to a duplicate mrp.bom.
+        """
+        self.env.cr.execute(
+            "SELECT pg_advisory_xact_lock(%s, %s)",
+            (RELEASE_LOCK_NAMESPACE, revision.id),
+        )
+
     def action_execute_release(self):
         """Execute the release. Atomic — any failure rolls back fully."""
         self.ensure_one()
+
+        # Serialize BEFORE any other check — see _acquire_release_lock.
+        self._acquire_release_lock(self.revision_id)
+
         if self.state == 'completed':
             raise UserError(_("Release %s has already been executed.") % self.name)
         if not self.env.user.has_group('product_graph_base.group_pg_approver'):
@@ -357,15 +421,29 @@ class PgRelease(models.Model):
         future MOs created on the new BOM would have no honest way to point
         back to a single canonical release.
 
-        If a prior ``pg.release`` for this (ebom, revision) is already in
-        ``completed`` state, raise UserError and instruct the user to
-        Supersede the EBOM (i.e. issue a new revision) instead.
+        If a prior ``pg.release`` for this (ebom, revision) is either in
+        ``completed`` state OR has ever stamped an ``mrp_bom_id``, raise
+        UserError and instruct the user to Supersede the EBOM (i.e. issue a
+        new revision) instead.
+
+        B6.3 Layer 2 — the ``mrp_bom_id != False`` half of this OR-domain is
+        belt-and-suspenders: ``mrp_bom_id`` is only ever stamped inside the
+        bypass-flagged completion write at Step 7 of
+        ``action_execute_release`` (never anywhere else — R1), so it is a
+        reliable "this revision was released" fact even if ``state`` itself
+        is later tampered with (an authorized bypass writer misused, a raw
+        SQL edit, or a future regression of the LIFECYCLE_MUTABLE_LOCKED
+        allowlist). Keying solely on ``state == 'completed'`` — the prior
+        behavior — would miss a duplicate release attempt against such a
+        tampered record.
         """
         prior = self.search([
             ('ebom_id', '=', ebom.id),
             ('revision_id', '=', revision.id),
-            ('state', '=', 'completed'),
             ('id', '!=', self.id),
+            '|',
+                ('state', '=', 'completed'),
+                ('mrp_bom_id', '!=', False),
         ], limit=1)
         if prior:
             raise UserError(_(

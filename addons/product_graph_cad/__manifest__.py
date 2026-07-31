@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – CAD Connector Framework',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.2.1',
     'category': 'Manufacturing/PLM',
     'summary': 'Pluggable CAD connector framework with a JSON-file '
                'reference driver — real PDM drivers slot in behind the '

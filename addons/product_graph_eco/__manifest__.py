@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Engineering Change Orders',
-    'version': '19.0.1.7.0',
+    'version': '19.0.1.10.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Engineering Change Order (ECO) workflow tying revisions to a '
                'governed change-board approval cycle',

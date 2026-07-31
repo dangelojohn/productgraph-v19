@@ -41,6 +41,19 @@ class TestPgEcoConstraints(TransactionCase):
             'change_type': 'corrective',
         })
 
+    def _released_eco(self):
+        # B6.1 closed the single-hop write({'state': 'released'}) shortcut
+        # this fixture previously used (even under the release-bypass
+        # context, draft -> released is not a legal transition and is now
+        # rejected). create() never goes through the mixin's write() guard,
+        # so it's the correct way to seed a terminal-state fixture without
+        # exercising (or defeating) the transition guard under test.
+        return self.env['pg.eco'].create({
+            'title': 'Constraint Test ECO',
+            'change_type': 'corrective',
+            'state': 'released',
+        })
+
     # ──────────────────────────────────────────────────────────────────
     # Sequence assignment
     # ──────────────────────────────────────────────────────────────────
@@ -53,16 +66,23 @@ class TestPgEcoConstraints(TransactionCase):
     # Released-immutability
     # ──────────────────────────────────────────────────────────────────
     def test_released_eco_blocks_title_write(self):
-        # Force one into 'released' via the bypass context to keep the test
-        # focused on the write-guard, not the whole walkthrough.
-        eco = self._draft_eco()
-        eco.with_context(_pg_eco_release_bypass=True).write({'state': 'released'})
+        eco = self._released_eco()
         with self.assertRaises(UserError):
             eco.write({'title': 'new title'})
 
+    def test_released_eco_blocks_state_write(self):
+        # B6.1 — companion to test_released_eco_blocks_title_write: a raw
+        # write({'state': ...}) off 'released' must be blocked the same as
+        # any other locked field, both by the unconditional
+        # _check_transition_allowed() guard and by the belt-and-suspenders
+        # 'state' entry in RELEASED_LOCKED_FIELDS.
+        eco = self._released_eco()
+        with self.assertRaises(UserError):
+            eco.write({'state': 'draft'})
+        self.assertEqual(eco.state, 'released')
+
     def test_chatter_write_allowed_on_released_eco(self):
-        eco = self._draft_eco()
-        eco.with_context(_pg_eco_release_bypass=True).write({'state': 'released'})
+        eco = self._released_eco()
         # Posting a message must not raise.
         eco.message_post(body='Post-release follow-up note')
 
