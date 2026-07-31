@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ProductGraph – Engineering Change Orders',
-    'version': '19.0.1.10.0',
+    'version': '19.0.1.11.0',
     'category': 'Manufacturing/PLM',
     'summary': 'Engineering Change Order (ECO) workflow tying revisions to a '
                'governed change-board approval cycle',
@@ -72,12 +72,15 @@ Compatible with Odoo 19.0 Community Edition.
         'data/ir_sequence_data.xml',
         'data/mail_templates.xml',
         'data/pg_eco_config.xml',
+        # Wizards must load BEFORE views that reference their actions
+        # via `%(…action_…)d` — that XML-id lookup is parse-time.
+        'wizard/views/eco_impact_wizard_view.xml',
+        'wizard/views/eco_reject_wizard_view.xml',
         'views/pg_eco_views.xml',
         'views/pg_eco_line_views.xml',
         'views/pg_eco_approval_views.xml',
         'views/pg_eco_menus.xml',
         'views/pg_work_queue_views.xml',
-        'wizard/views/eco_impact_wizard_view.xml',
     ],
     'demo': [
         'demo/pg_eco_demo.xml',
